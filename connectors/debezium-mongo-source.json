@@ -1,0 +1,16 @@
+{
+  "name": "tourism-mongodb-source",
+  "config": {
+    "connector.class": "io.debezium.connector.mongodb.MongoDbConnector",
+    "mongodb.connection.string": "mongodb://mongo:27017/?replicaSet=rs0",
+    "topic.prefix": "tourism",
+    "database.include.list": "tourism",
+    "collection.include.list": "tourism.accomodations,tourism.attractions",
+    "snapshot.mode": "initial",
+    "capture.mode": "change_streams_update_full_document",
+    "heartbeat.interval.ms": "10000",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true"
+  }
+}

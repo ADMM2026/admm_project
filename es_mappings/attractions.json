@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "properties": {
+      "name":        { "type": "text",    "fields": { "keyword": { "type": "keyword" } } },
+      "category":    { "type": "text",    "fields": { "keyword": { "type": "keyword" } } },
+      "description": { "type": "text" },
+      "location": {
+        "properties": {
+          "municipality": { "type": "text",    "fields": { "keyword": { "type": "keyword" } } },
+          "province":     { "type": "text",    "fields": { "keyword": { "type": "keyword" } } }
+        }
+      },
+      "geo_point": { "type": "geo_point" },
+      "image":     { "type": "keyword", "index": false },
+      "extra_info": {
+        "type": "object",
+        "dynamic": true
+      },
+      "op": { "type": "keyword" }
+    }
+  }
+}

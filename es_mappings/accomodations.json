@@ -1,0 +1,33 @@
+{
+  "mappings": {
+    "properties": {
+      "name":           { "type": "text",    "fields": { "keyword": { "type": "keyword" } } },
+      "structure_type": { "type": "keyword" },
+      "sector":         { "type": "keyword" },
+      "stars":          { "type": "integer" },
+      "location": {
+        "properties": {
+          "municipality": { "type": "text",    "fields": { "keyword": { "type": "keyword" } } },
+          "province":     { "type": "text",    "fields": { "keyword": { "type": "keyword" } } }
+        }
+      },
+      "geo_point":      { "type": "geo_point" },
+      "capacity": {
+        "properties": {
+          "rooms": { "type": "integer" },
+          "beds":  { "type": "integer" }
+        }
+      },
+      "contacts": {
+        "properties": {
+          "phone":   { "type": "keyword", "index": false },
+          "email":   { "type": "keyword", "index": false },
+          "website": { "type": "keyword", "index": false }
+        }
+      },
+      "avg_rating":     { "type": "float" },
+      "review_count":   { "type": "integer" },
+      "op":             { "type": "keyword" }
+    }
+  }
+}

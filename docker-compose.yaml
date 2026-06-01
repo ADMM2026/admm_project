@@ -79,10 +79,28 @@ services:
     environment:
       - node.name=elasticsearch
       - discovery.type=single-node
-      - xpack.security.enabled=false 
+      - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data 
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    container_name: tourism-consumer
+    depends_on:
+      - kafka
+      - elasticsearch
+      - connect
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ES_HOST=http://elasticsearch:9200
+      - KAFKA_TOPICS=tourism.tourism.accomodations,tourism.tourism.attractions
+      - KAFKA_GROUP_ID=es-consumer-group
+      - CONSUMER_BATCH_SIZE=50
+      - CONSUMER_FLUSH_SECS=2.0
+    restart: unless-stopped
 
   # kibana:
   #   image: docker.elastic.co/kibana/kibana:8.15.0
