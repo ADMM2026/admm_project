@@ -18,3 +18,5 @@ raw_data/
 
 .idea/
 .vscode/
+
+logstash/
