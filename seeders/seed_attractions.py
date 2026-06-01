@@ -196,13 +196,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed MongoDB with attractions data.")
     
     parser.add_argument("--mongo-uri", type=str, 
-                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?replicaSet=rs0"), 
+                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"), 
                         help="MongoDB connection URI.")
     parser.add_argument("--mongo-db", type=str,
-                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
+                        default=os.getenv("MONGO_DB_NAME", "tourism"),
                         help="MongoDB database name.")
     parser.add_argument("--attractions_dir", type=str, 
-                        default=os.path.join(script_dir, "raw_data", "attractions"), # FIX: Corretto refuso 'attracctions'
+                        default=os.path.join(script_dir, "raw_data", "attractions"),
                         help="Path to the directory containing attraction csv files.")
     parser.add_argument("--municipalities", type=str, 
                         default=os.path.join(script_dir, "raw_data", "municipalities", "Com01012026_g_WGS84.shp"),

@@ -238,10 +238,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed MongoDB with accommodations data from regional CSV files.")
     
     parser.add_argument("--mongo-uri", type=str, 
-                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?replicaSet=rs0"), 
+                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"), 
                         help="MongoDB connection URI.")
     parser.add_argument("--mongo-db", type=str,
-                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
+                        default=os.getenv("MONGO_DB_NAME", "tourism"),
                         help="MongoDB database name.")
     parser.add_argument("--locations", type=str, 
                         default=os.path.join(script_dir, "raw_data", "accomodations", "villeggiatura_losir.csv"),
