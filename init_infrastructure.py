@@ -1,0 +1,52 @@
+import time
+import requests
+import json
+
+CONNECT_URL = "http://localhost:8083/connectors"
+ES_URL = "http://localhost:9200"
+
+def init_elasticsearch_indices():
+    mapping_template = {
+        "mappings": {
+            "properties": {
+                "name": { "type": "text", "analyzer": "standard" },
+                "location": {
+                    "properties": {
+                        "municipality": { "type": "text", "analyzer": "standard" },
+                        "province": { "type": "text", "analyzer": "standard" }
+                    }
+                },
+                "coordinates": { "type": "geo_point" }
+            }
+        }
+    }
+
+    for index_name in ["accommodations", "attractions"]:
+        res = requests.put(f"{ES_URL}/{index_name}", json=mapping_template)
+        if res.status_code == 200:
+            print(f"Indice ELK '{index_name}' creato con successo.")
+        else:
+            print(f"Indice ELK '{index_name}' già esistente o errore: {res.text}")
+
+def start_debezium():
+    print("In attesa di Kafka Connect...")
+    while True:
+        try:
+            if requests.get("http://localhost:8083/").status_code == 200:
+                break
+        except:
+            pass
+        time.sleep(2)
+    
+    with open("mongo-source.json", "r") as f:
+        config = json.load(f)
+    
+    res = requests.put(f"{CONNECT_URL}/mongodb-source-connector/config", json=config["config"])
+    if res.status_code in [200, 201]:
+        print("Connettore Debezium avviato!")
+    else:
+        print(f"Errore Debezium: {res.text}")
+
+if __name__ == "__main__":
+    init_elasticsearch_indices()
+    start_debezium()

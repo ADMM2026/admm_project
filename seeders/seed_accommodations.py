@@ -117,7 +117,7 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
     for prov, group in df_details.groupby('sigla_prov'):
         queues_provinces[prov] = group.to_dict('records')
 
-    accomodations = []
+    accommodations = []
     id_counter = 1
 
     used_rows = set()
@@ -200,16 +200,16 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
             "reservations": []
         }
 
-        accomodations.append(document_mongo)
+        accommodations.append(document_mongo)
         id_counter += 1
-    return accomodations
+    return accommodations
 
     
     
 def main(args):
     mongo_client = MongoClient(args.mongo_uri)
     db = mongo_client[args.mongo_db]
-    collection_name = "accomodations"
+    collection_name = "accommodations"
     collection = db[collection_name]
 
     print(f"Database reset: removing data from collection '{collection_name}'...")
@@ -218,19 +218,19 @@ def main(args):
     print(f"Creating geospatial index on '{POSITION_FIELD}'...")
     collection.create_index([(POSITION_FIELD, "2dsphere")])
 
-    accomodations = csv_to_mongo_json(
+    accommodations = csv_to_mongo_json(
         file_locations_path=args.locations,
         file_details_path=args.details,
         file_municipalities_path=args.municipalities
     )
 
     print("Inserting documents into MongoDB...")
-    collection.insert_many(accomodations)
+    collection.insert_many(accommodations)
     os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     print(f"Saving JSON backup to {args.output_json}...")
     with open(args.output_json, 'w', encoding='utf-8') as f:
-        json.dump(accomodations, f, indent=4, ensure_ascii=False)
-    print(f"Completed. Stored {len(accomodations)} accommodations.")
+        json.dump(accommodations, f, indent=4, ensure_ascii=False)
+    print(f"Completed. Stored {len(accommodations)} accommodations.")
 
 
 if __name__ == "__main__":
@@ -241,13 +241,13 @@ if __name__ == "__main__":
                         default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"), 
                         help="MongoDB connection URI.")
     parser.add_argument("--mongo-db", type=str,
-                        default=os.getenv("MONGO_DB_NAME", "tourism"),
+                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
                         help="MongoDB database name.")
     parser.add_argument("--locations", type=str, 
-                        default=os.path.join(script_dir, "raw_data", "accomodations", "villeggiatura_losir.csv"),
+                        default=os.path.join(script_dir, "raw_data", "accommodations", "villeggiatura_losir.csv"),
                         help="Path to the file containing geolocations.")
     parser.add_argument("--details", type=str, 
-                        default=os.path.join(script_dir, "raw_data", "accomodations", "offerta_ricettiva_comuni.csv"),
+                        default=os.path.join(script_dir, "raw_data", "accommodations", "offerta_ricettiva_comuni.csv"),
                         help="Path to the file containing descriptive data.")
     parser.add_argument("--municipalities", type=str, 
                         default=os.path.join(script_dir, "raw_data", "municipalities", "Com01012026_g_WGS84.shp"),
