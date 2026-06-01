@@ -1,0 +1,13 @@
+FROM debezium/connect:2.7.3.Final
+
+USER root
+
+RUN microdnf install -y curl unzip && microdnf clean all
+
+RUN curl -L -o /tmp/confluent-7.7.0.tar.gz https://packages.confluent.io/archive/7.7/confluent-7.7.0.tar.gz && \
+    mkdir -p /opt/confluent && \
+    tar -xzf /tmp/confluent-7.7.0.tar.gz -C /opt/confluent --strip-components=1 && \
+    /opt/confluent/bin/confluent-hub install --no-prompt confluentinc/kafka-connect-elasticsearch:latest && \
+    /opt/confluent/bin/confluent-hub install --no-prompt debezium/debezium-connector-mongodb:latest
+
+USER kafka

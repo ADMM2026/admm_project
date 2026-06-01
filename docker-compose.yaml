@@ -44,7 +44,9 @@ services:
       - KAFKA_LOG_DIRS=/tmp/kraft-combined-logs
 
   connect:
-    image: debezium/connect:2.7.3.Final
+    build:
+      context: .
+      dockerfile: Dockerfile.connect
     container_name: tourism-connect
     ports:
       - "8083:8083"
@@ -65,7 +67,7 @@ services:
       - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
       - KEY_CONVERTER_SCHEMAS_ENABLE=false
       - VALUE_CONVERTER_SCHEMAS_ENABLE=false
-      - CONNECT_PLUGIN_PATH=/kafka/connect,/usr/share/java
+      - CONNECT_PLUGIN_PATH=/kafka/connect,/usr/share/java,/opt/confluent/share/confluent-hub-components
     volumes:
       - ./plugins:/kafka/connect
 
