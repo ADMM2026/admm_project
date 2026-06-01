@@ -96,8 +96,8 @@ for message in consumer:
 
     try:
         es.index(index=target_index, id=str(mongo_id), document=elk_document)
+        print(".", end="")
         indexed_count += 1
     except Exception as e:
         print(f"Error for document {mongo_id}: {e}")
 
-print(f"succesfly synchronized {indexed_count} documents")
