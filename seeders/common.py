@@ -20,6 +20,6 @@ def locate_municipality(lon, lat, piedmont_municipalities):
         municipality = match.iloc[0]['COMUNE']
         municipality = municipality.encode('latin1', errors='ignore').decode('utf-8', errors='ignore')
         cod_prov = int(match.iloc[0]['COD_PROV'])
-        province = PIEDMONT_PROVINCES.get(cod_prov, "Piemonte")
+        province = PIEDMONT_PROVINCES.get(cod_prov, "TO")
         return municipality, province
     return "Non specificato", "Piemonte"
