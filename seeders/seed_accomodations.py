@@ -2,22 +2,15 @@ import pandas as pd
 import random
 import json
 import re
-from shapely.geometry import Point
 import geopandas as gpd
 from pymongo import MongoClient
 import os
 import argparse
+from seeders.common import PIEDMONT_PROVINCES, locate_municipality
+from dotenv import load_dotenv
 
-PIEDMONT_PROVINCES = {
-    201: "TO",  # Torino
-    2: "VC",  # Vercelli
-    3: "NO",  # Novara
-    4: "CN",  # Cuneo
-    5: "AT",  # Asti
-    6: "AL",  # Alessandria
-    96: "BI",  # Biella
-    103: "VB"  # Verbano-Cusio-Ossola
-}
+
+load_dotenv()
 
 PIEMONT_PREFIXES = {
     "TO": "011",
@@ -44,16 +37,6 @@ ADJECTIVES_COLORS = [
 
 POSITION_FIELD = "position"
 
-def locate_municipality(lon, lat, piedmont_municipalities):
-    point = Point(lon, lat)
-    match = match = piedmont_municipalities[piedmont_municipalities.contains(point)]
-    if not match.empty:
-        municipality = match.iloc[0]['COMUNE']
-        municipality = municipality.encode('latin1', errors='ignore').decode('utf-8', errors='ignore')
-        cod_prov = int(match.iloc[0]['COD_PROV'])
-        province = PIEDMONT_PROVINCES.get(cod_prov, "Piemonte")
-        return municipality, province
-    return "Non specificato", "Piemonte"
 
 def generate_name(qualification):
     qualification_clean = qualification.lower()
@@ -143,19 +126,19 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
         lon = float(row['longitude'])
         lat = float(row['latitude'])
 
-        municpality = "NON SPECIFICATO"
+        municipality = "NON SPECIFICATO"
         province = "PIEMONTE"
 
         try:
-            municpality, province = locate_municipality(lon, lat, municipalities_piedmont)
+            municipality, province = locate_municipality(lon, lat, municipalities_piedmont)
         except NameError:
             if pd.notna(row['COMUNE']):
-                municpality = str(row['COMUNE']).strip().upper()
+                municipality = str(row['COMUNE']).strip().upper()
 
         info_extra = None
 
-        if municpality in queues_municipalities and len(queues_municipalities[municpality]) > 0:
-            info_extra = queues_municipalities[municpality].pop(0)
+        if municipality in queues_municipalities and len(queues_municipalities[municipality]) > 0:
+            info_extra = queues_municipalities[municipality].pop(0)
             used_rows.add(
                 (info_extra['comune'], info_extra['qualifica'], info_extra['letti'], info_extra['camere']))
 
@@ -197,7 +180,7 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
             "sector": sector,
             "stars": stars,
             "location": {
-                "municipality": municpality.title(),
+                "municipality": municipality.title(),
                 "province": province.upper()
             },
             POSITION_FIELD: {
@@ -225,7 +208,7 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
     
 def main(args):
     mongo_client = MongoClient(args.mongo_uri)
-    db = mongo_client["Tourism"]
+    db = mongo_client[args.mongo_db]
     collection_name = "accomodations"
     collection = db[collection_name]
 
@@ -243,11 +226,10 @@ def main(args):
 
     print("Inserting documents into MongoDB...")
     collection.insert_many(accomodations)
-    
+    os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     print(f"Saving JSON backup to {args.output_json}...")
     with open(args.output_json, 'w', encoding='utf-8') as f:
         json.dump(accomodations, f, indent=4, ensure_ascii=False)
-
     print(f"Completed. Stored {len(accomodations)} accommodations.")
 
 
@@ -255,7 +237,12 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description="Seed MongoDB with accommodations data from regional CSV files.")
     
-    parser.add_argument("--mongo-uri", type=str, default="mongodb://localhost:27017", help="MongoDB connection URI.")
+    parser.add_argument("--mongo-uri", type=str, 
+                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?replicaSet=rs0"), 
+                        help="MongoDB connection URI.")
+    parser.add_argument("--mongo-db", type=str,
+                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
+                        help="MongoDB database name.")
     parser.add_argument("--locations", type=str, 
                         default=os.path.join(script_dir, "raw_data", "accomodations", "villeggiatura_losir.csv"),
                         help="Path to the file containing geolocations.")
