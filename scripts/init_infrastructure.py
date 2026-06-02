@@ -47,6 +47,3 @@ def start_debezium():
     else:
         print(f"Debezium Error: {res.text}")
 
-if __name__ == "__main__":
-    init_elasticsearch_indices()
-    start_debezium()
