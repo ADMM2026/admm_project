@@ -241,7 +241,7 @@ if __name__ == "__main__":
                         default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"), 
                         help="MongoDB connection URI.")
     parser.add_argument("--mongo-db", type=str,
-                        default=os.getenv("MONGO_DB_NAME", "tourism"),
+                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
                         help="MongoDB database name.")
     parser.add_argument("--locations", type=str, 
                         default=os.path.join(script_dir, "raw_data", "accommodations", "villeggiatura_losir.csv"),
