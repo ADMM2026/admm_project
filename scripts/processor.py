@@ -2,6 +2,16 @@ from kafka import KafkaConsumer
 from elasticsearch import Elasticsearch
 import json
 
+
+def process_reviews(raw_reviews):
+    if isinstance(raw_reviews, list):
+        reviews_list = [str(r).strip() for r in raw_reviews if r]
+    elif isinstance(raw_reviews, str):
+        reviews_list = [raw_reviews.strip()] if raw_reviews.strip() else []
+    else:
+        reviews_list = []
+    return reviews_list
+
 consumer = KafkaConsumer(
     'Tourism.Tourism.accommodations',  
     'Tourism.Tourism.attractions',
@@ -20,7 +30,6 @@ indexed_count = 0
 for message in consumer:
     if message.value is None:
         continue 
-        
     try:
         debezium_payload = json.loads(message.value.decode('utf-8'))
     except Exception as e:
@@ -68,10 +77,9 @@ for message in consumer:
         elk_document = {
             "name": raw_data.get("name"),
             "structure_type": raw_data.get("structure_type"),
-            "sector": raw_data.get("sector"),
             "stars": raw_data.get("stars"),
             "location": raw_data.get("location"),
-            "capacity": raw_data.get("capacity") 
+            "reviews": process_reviews(raw_data.get("reviews"))
         }
     else:
         target_index = "attractions"
@@ -79,24 +87,12 @@ for message in consumer:
             "name": raw_data.get("name"),
             "category": raw_data.get("category"),
             "description": raw_data.get("description"),
-            "location": raw_data.get("location")
+            "location": raw_data.get("location"),
+            "reviews": process_reviews(raw_data.get("reviews"))
         }
-    
-    position = raw_data.get("position")
-    if isinstance(position, str):
-        try:
-            position = json.loads(position)
-        except:
-            position = None
-
-    if isinstance(position, dict) and position.get("type") == "Point":
-        coords = position.get("coordinates")  # Array [longitude, latitude]
-        if coords and len(coords) == 2:
-            elk_document["coordinates"] = coords
-
     try:
         es.index(index=target_index, id=str(mongo_id), document=elk_document)
-        print(".", end="")
+        print("|", end="")
         indexed_count += 1
     except Exception as e:
         print(f"Error for document {mongo_id}: {e}")

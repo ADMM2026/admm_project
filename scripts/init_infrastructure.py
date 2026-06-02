@@ -1,28 +1,93 @@
 import time
 import requests
 import json
+import copy
 
 CONNECT_URL = "http://localhost:8083/connectors"
 ES_URL = "http://localhost:9200"
 
 def init_elasticsearch_indices():
     mapping_template = {
-        "mappings": {
-            "properties": {
-                "name": { "type": "text", "analyzer": "standard" },
-                "location": {
-                    "properties": {
-                        "municipality": { "type": "text", "analyzer": "standard" },
-                        "province": { "type": "text", "analyzer": "standard" }
+        "settings": {
+            "analysis": {
+                "filter": {
+                    "provinces_synonyms": {
+                        "type": "synonym",
+                        "synonyms": [
+                            "to, torino",
+                            "al, alessandria",
+                            "at, asti",
+                            "cn, cuneo",
+                            "no, novara",
+                            "vc, vercelli",
+                            "bi, biella",
+                            "vb, verbano, cusio, ossola"
+                        ]
                     }
                 },
-                "coordinates": { "type": "geo_point" }
+                "analyzer": {
+                    "province_analyzer": {
+                        "tokenizer": "standard",
+                        "filter": ["lowercase", "provinces_synonyms"]
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "properties": {
+                "name": { "type": "text", "analyzer": "italian" },
+                "reviews": {"type": "text", "analyzer": "italian"},
+                "location": {
+                    "properties": {
+                        "municipality": {
+                            "type": "text",
+                            "analyzer": "italian",  
+                                "fields": {
+                                    "keyword": {"type": "keyword"}  
+                                }
+                            },
+                        "province": {
+                            "type": "text",
+                            "analyzer": "province_analyzer",  
+                                "fields": {
+                                    "keyword": {"type": "keyword"}  
+                                }
+                            }
+                    }
+                }
             }
         }
     }
 
-    for index_name in ["accommodations", "attractions"]:
-        res = requests.put(f"{ES_URL}/{index_name}", json=mapping_template)
+    mapping_attractions = copy.deepcopy(mapping_template)
+    mapping_attractions["mappings"]["properties"]["category"] = {
+                            "type": "text",
+                            "analyzer": "italian",  
+                                "fields": {
+                                    "keyword": {"type": "keyword"}  
+                                }
+                            }
+    mapping_attractions["mappings"]["properties"]["description"] = { "type": "text", "analyzer": "italian" }
+
+
+    mapping_accommodations = copy.deepcopy(mapping_template)  
+    mapping_accommodations["mappings"]["properties"]["structure_type"] = {"type": "keyword"}
+    mapping_accommodations["mappings"]["properties"]["stars"] = { "type": "integer" }
+
+    index_names = ["accommodations", "attractions"]
+    mappings = [mapping_accommodations, mapping_attractions]
+
+    for (index_name, mapping) in zip(index_names, mappings):
+        index_url = f"{ES_URL}/{index_name}"
+        check_res = requests.head(index_url)
+        if check_res.status_code == 200:
+            print(f"Eliminting old '{index_name}' index")
+            delete_res = requests.delete(index_url)
+            if delete_res.status_code == 200:
+                print(f"Index '{index_name}' removed")
+            else:
+                print(f"Can't remove '{index_name}': {delete_res.text}")
+        res = requests.put(index_url, json=mapping)
         if res.status_code == 200:
             print(f"ELK index '{index_name}' succesfully created.")
         else:

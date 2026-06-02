@@ -1,16 +1,14 @@
 import subprocess
 import sys
 import os
-import time
+from scripts.init_infrastructure import init_elasticsearch_indices, start_debezium
+        
 
 def run_pipeline():
     sys.path.append(os.path.abspath(os.path.dirname(__file__)))
     print("[1/2] init infrastrucutre...")
     try:
-        from scripts.init_infrastructure import init_elasticsearch_indices, start_debezium
-        
         init_elasticsearch_indices()
-        
         start_debezium()
     except Exception as e:
         print(e)
