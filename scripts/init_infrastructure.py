@@ -37,6 +37,7 @@ def init_elasticsearch_indices():
             "properties": {
                 "name": { "type": "text", "analyzer": "italian" },
                 "reviews": {"type": "text", "analyzer": "italian"},
+                "coordinates": { "type": "geo_point" },
                 "location": {
                     "properties": {
                         "municipality": {

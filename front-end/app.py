@@ -1,0 +1,86 @@
+"""
+Entry point — Login / Registrazione.
+Dopo il login, redirect automatico in base al ruolo:
+  tourist  -> pages/ricerca.py
+  manager  -> pages/dashboard.py
+"""
+import streamlit as st
+from components.utils import load_css
+from services import auth
+
+st.set_page_config(
+    page_title="Piemonte Tourism — Login",
+    page_icon="P",
+    layout="centered",
+)
+load_css()
+
+# ── Se gia loggato, redirect ───────────────────────────────────────────────────
+if st.session_state.get("user"):
+    role = st.session_state["user"].get("role")
+    st.switch_page("pages/dashboard.py" if role == "manager" else "pages/ricerca.py")
+
+# ── Hero ──────────────────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <div class="hero-section">
+      <p class="hero-title">Piemonte Tourism</p>
+      <p class="hero-sub">Esplora attrazioni e alloggi del Piemonte</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.divider()
+
+# ── Tabs Login / Registrazione ────────────────────────────────────────────────
+tab_login, tab_reg = st.tabs(["Accedi", "Registrati"])
+
+# ── LOGIN ─────────────────────────────────────────────────────────────────────
+with tab_login:
+    st.write("")
+    with st.form("form_login", clear_on_submit=False):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        login_btn = st.form_submit_button("Accedi", use_container_width=True, type="primary")
+
+    if login_btn:
+        if not username.strip() or not password:
+            st.warning("Inserisci username e password.")
+        else:
+            user, msg = auth.login_user(username.strip(), password)
+            if user:
+                st.session_state["user"] = user
+                st.rerun()
+            else:
+                st.error(msg)
+
+# ── REGISTRAZIONE ─────────────────────────────────────────────────────────────
+with tab_reg:
+    st.write("")
+    with st.form("form_register", clear_on_submit=True):
+        new_user = st.text_input("Username")
+        new_email = st.text_input("Email (opzionale)")
+        new_pw = st.text_input("Password", type="password")
+        new_pw2 = st.text_input("Conferma password", type="password")
+        new_role = st.radio(
+            "Tipo di account",
+            options=["tourist", "manager"],
+            format_func=lambda r: "Turista" if r == "tourist" else "Manager",
+            horizontal=True,
+        )
+        reg_btn = st.form_submit_button("Crea account", use_container_width=True, type="primary")
+
+    if reg_btn:
+        if not new_user.strip() or not new_pw:
+            st.warning("Username e password sono obbligatori.")
+        elif new_pw != new_pw2:
+            st.error("Le password non coincidono.")
+        elif len(new_pw) < 6:
+            st.warning("La password deve essere di almeno 6 caratteri.")
+        else:
+            ok, msg = auth.register_user(new_user.strip(), new_pw, new_role, new_email.strip())
+            if ok:
+                st.success(f"{msg} Ora puoi accedere dal tab Accedi.")
+            else:
+                st.error(msg)

@@ -1,0 +1,138 @@
+/* ── Google Font ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Hero section ─────────────────────────────────────────────────────────── */
+.hero-section {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+    animation: fadeInDown 0.6s ease;
+}
+.hero-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1.2;
+}
+.hero-sub {
+    font-size: 1rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+    font-weight: 300;
+}
+
+/* ── Metric cards ─────────────────────────────────────────────────────────── */
+.metric-card {
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    border-radius: 14px;
+    padding: 1rem 1.4rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(167, 139, 250, 0.15);
+}
+.metric-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    margin-bottom: 0.3rem;
+}
+.metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #a78bfa;
+}
+
+/* ── Result cards ─────────────────────────────────────────────────────────── */
+.result-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.7rem;
+    transition: background 0.2s, border-color 0.2s;
+    animation: fadeInUp 0.35s ease;
+}
+.result-card:hover {
+    background: rgba(167, 139, 250, 0.07);
+    border-color: rgba(167, 139, 250, 0.35);
+}
+.result-name {
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 0.15rem;
+}
+.result-meta {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+.result-desc {
+    font-size: 0.83rem;
+    color: #94a3b8;
+    margin-top: 0.4rem;
+    line-height: 1.5;
+}
+
+/* ── Badges ───────────────────────────────────────────────────────────────── */
+.badge {
+    display: inline-block;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    margin-right: 4px;
+    margin-top: 4px;
+}
+.badge-blue {
+    background: rgba(96, 165, 250, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #93c5fd;
+}
+.badge-green {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    color: #6ee7b7;
+}
+.badge-purple {
+    background: rgba(167, 139, 250, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    color: #c4b5fd;
+}
+
+/* ── Section labels ───────────────────────────────────────────────────────── */
+.section-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    margin-top: 1rem;
+}
+.map-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

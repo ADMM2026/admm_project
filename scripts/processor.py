@@ -62,6 +62,9 @@ for message in consumer:
 
     topic = message.topic
     
+    pos = raw_data.get("position", {})
+    coords = pos.get("coordinates") if isinstance(pos, dict) else None
+
     mongo_id = raw_data.get('_id')
     if isinstance(mongo_id, dict) and '$oid' in mongo_id:
         mongo_id = mongo_id['$oid']
@@ -79,6 +82,7 @@ for message in consumer:
             "structure_type": raw_data.get("structure_type"),
             "stars": raw_data.get("stars"),
             "location": raw_data.get("location"),
+            "coordinates": coords,
             "reviews": process_reviews(raw_data.get("reviews"))
         }
     else:
@@ -88,6 +92,7 @@ for message in consumer:
             "category": raw_data.get("category"),
             "description": raw_data.get("description"),
             "location": raw_data.get("location"),
+            "coordinates": coords,
             "reviews": process_reviews(raw_data.get("reviews"))
         }
     try:
