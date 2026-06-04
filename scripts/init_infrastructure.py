@@ -6,7 +6,7 @@ import copy
 CONNECT_URL = "http://localhost:8083/connectors"
 ES_URL = "http://localhost:9200"
 
-def init_elasticsearch_indices():
+def init_elasticsearch_indices(fresh_start=False):
     mapping_template = {
         "settings": {
             "analysis": {
@@ -81,18 +81,24 @@ def init_elasticsearch_indices():
     for (index_name, mapping) in zip(index_names, mappings):
         index_url = f"{ES_URL}/{index_name}"
         check_res = requests.head(index_url)
-        if check_res.status_code == 200:
-            print(f"Eliminting old '{index_name}' index")
-            delete_res = requests.delete(index_url)
-            if delete_res.status_code == 200:
-                print(f"Index '{index_name}' removed")
+        index_exists = (check_res.status_code == 200)
+
+        if index_exists:
+            if fresh_start:
+                print(f"Removing old ELK index '{index_name}'...")
+                delete_res = requests.delete(index_url)
+                if delete_res.status_code != 200:
+                    print(f"Impossible to remove '{index_name}': {delete_res.text}")
+                    continue
             else:
-                print(f"Can't remove '{index_name}': {delete_res.text}")
+                print(f"ELK index '{index_name}' already exists.")
+                continue # 
+
         res = requests.put(index_url, json=mapping)
-        if res.status_code == 200:
-            print(f"ELK index '{index_name}' succesfully created.")
+        if res.status_code in [200, 201]:
+            print(f"ELK index '{index_name}' created.")
         else:
-            print(f"ELK index '{index_name}' already existing or error: {res.text}")
+            print(f"Error during ELK index creation '{index_name}': {res.text}")
 
 def start_debezium():
     print("Waiting for Kafka Connect...")

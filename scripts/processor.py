@@ -17,7 +17,10 @@ consumer = KafkaConsumer(
     'Tourism.Tourism.attractions',
     bootstrap_servers=['localhost:9092'],
     auto_offset_reset='earliest',
-    group_id='elk-processor-group'
+    group_id='elk-processor-group',
+    api_version=(2, 5, 0),       
+    max_poll_records=100,        
+    max_partition_fetch_bytes=1048576 
 )
 es = Elasticsearch(
     ["http://localhost:9200"],
