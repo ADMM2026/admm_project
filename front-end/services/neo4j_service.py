@@ -1,29 +1,37 @@
 """
-Neo4j service — STUB (not yet active).
-Replace the body of each function when Neo4j is ready.
+Neo4j service — ricerca luoghi vicini via back-end FastAPI (stub).
+Sostituisce lo stub locale. Ritornerà dati reali quando Neo4j sarà attivo.
 """
+from services.api_client import get
 
 
 def is_available() -> bool:
-    """Returns True when Neo4j is connected and ready."""
-    return False
+    """Ritorna True quando Neo4j è connesso e pronto."""
+    try:
+        data = get("/nearby/health")
+        return data.get("available", False)
+    except Exception:
+        return False
 
 
 def find_nearby(
     doc_id: str,
-    source_type: str,        # 'attraction' | 'accommodation'
-    target_type: str,        # 'attraction' | 'accommodation'
+    source_type: str,   # 'attraction' | 'accommodation'
+    target_type: str,   # 'attraction' | 'accommodation'
     radius_km: float = 5.0,
     limit: int = 10,
 ) -> list[dict]:
     """
-    Returns a list of nearby POIs within radius_km.
-    STUB: always returns an empty list until Neo4j is connected.
-
-    Future Cypher query example:
-        MATCH (a {id: $id})-[r:NEARBY]->(b)
-        WHERE r.distance_km <= $radius
-        RETURN b, r.distance_km AS distance
-        ORDER BY distance LIMIT $limit
+    Ritorna i POI vicini entro radius_km.
+    STUB: ritorna sempre lista vuota finché Neo4j non è attivo.
     """
-    return []
+    try:
+        data = get(f"/nearby/{doc_id}", params={
+            "source_type": source_type,
+            "target_type": target_type,
+            "radius_km": radius_km,
+            "limit": limit,
+        })
+        return data.get("results", [])
+    except Exception:
+        return []

@@ -1,34 +1,31 @@
 """
-MongoDB service — detail retrieval, reviews, and dashboard stats.
+MongoDB service — dettaglio documenti e recensioni via back-end FastAPI.
+Sostituisce la connessione diretta a MongoDB.
 """
-import os
-from datetime import datetime, timezone
-from pymongo import MongoClient
-from dotenv import load_dotenv
-
-load_dotenv()
-
-_client = None
-
-
-def _get_db():
-    global _client
-    if _client is None:
-        uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true")
-        _client = MongoClient(uri)
-    return _client[os.getenv("MONGO_DB_NAME", "Tourism")]
+import requests
+from services.api_client import get, post, api_error_message
 
 
 def get_detail(collection: str, doc_id: str) -> dict | None:
-    """Fetch a full document from MongoDB by _id."""
-    return _get_db()[collection].find_one({"_id": doc_id})
+    """Recupera un documento completo da MongoDB tramite il back-end."""
+    try:
+        return get(f"/detail/{collection}/{doc_id}")
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            return None
+        raise
+    except Exception:
+        return None
 
 
 def get_distinct_values(collection: str, field: str) -> list[str]:
-    """Fetch distinct string values for a field directly from MongoDB."""
+    """
+    Recupera valori distinti per un campo tramite Elasticsearch (field-values).
+    Mantenuto per compatibilità; usa il back-end search.
+    """
     try:
-        values = _get_db()[collection].distinct(field)
-        return sorted([str(v) for v in values if v])
+        data = get("/search/field-values", params={"index": collection, "field": field})
+        return data.get("values", [])
     except Exception:
         return []
 
@@ -40,92 +37,27 @@ def add_review(
     rating: int,
     text: str,
 ) -> dict:
-    """Push a new review into the document's 'reviews' array."""
-    review = {
+    """Aggiunge una recensione a un documento tramite il back-end."""
+    review = post(f"/reviews/{collection}/{doc_id}", json={
         "username": username,
         "rating": rating,
         "text": text,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    _get_db()[collection].update_one(
-        {"_id": doc_id},
-        {"$push": {"reviews": review}},
-    )
+    })
     return review
 
 
 def get_dashboard_stats() -> dict:
     """
-    Aggregate statistics for the manager dashboard.
-    Returns a dict with counts and distribution data.
+    Statistiche aggregate per la dashboard manager.
+    Delega al back-end /dashboard/stats.
     """
-    db = _get_db()
+    return get("/dashboard/stats")
 
-    stats: dict = {}
 
-    # ── Counts ──
-    stats["n_attractions"] = db["attractions"].count_documents({})
-    stats["n_accommodations"] = db["accommodations"].count_documents({})
-    stats["n_users"] = db["users"].count_documents({}) if "users" in db.list_collection_names() else 0
-
-    # Total embedded reviews across all accommodations
-    r = list(
-        db["accommodations"].aggregate(
-            [
-                {"$project": {"count": {"$size": {"$ifNull": ["$reviews", []]}}}},
-                {"$group": {"_id": None, "total": {"$sum": "$count"}}},
-            ]
-        )
-    )
-    stats["n_reviews"] = r[0]["total"] if r else 0
-
-    # ── Attractions by province ──
-    stats["attractions_by_province"] = list(
-        db["attractions"].aggregate(
-            [
-                {"$group": {"_id": "$location.province", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}},
-                {"$limit": 10},
-            ]
-        )
-    )
-
-    # ── Accommodations by province ──
-    stats["accommodations_by_province"] = list(
-        db["accommodations"].aggregate(
-            [
-                {"$group": {"_id": "$location.province", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}},
-                {"$limit": 10},
-            ]
-        )
-    )
-
-    # ── Attractions by category ──
-    stats["attractions_by_category"] = list(
-        db["attractions"].aggregate(
-            [
-                {"$group": {"_id": "$category", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}},
-            ]
-        )
-    )
-
-    # ── Average stars by structure type ──
-    stats["stars_by_type"] = list(
-        db["accommodations"].aggregate(
-            [
-                {
-                    "$group": {
-                        "_id": "$structure_type",
-                        "avg_stars": {"$avg": "$stars"},
-                        "count": {"$sum": 1},
-                    }
-                },
-                {"$sort": {"count": -1}},
-                {"$limit": 10},
-            ]
-        )
-    )
-
-    return stats
+def get_map_data() -> dict:
+    """
+    Dati proiettati per la mappa Plotly.
+    Delega al back-end /dashboard/map-data.
+    Ritorna {'accommodations': [...], 'attractions': [...]}.
+    """
+    return get("/dashboard/map-data")
