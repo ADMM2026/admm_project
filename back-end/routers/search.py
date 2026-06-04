@@ -150,31 +150,109 @@ def search_accommodations(
     hits = [h["_source"] | {"_id": h["_id"]} for h in resp["hits"]["hits"]]
     return {"hits": hits, "total": resp["hits"]["total"]["value"]}
 
+def get_aggregatable_field(es, index: str, field: str) -> str | None:
+    """
+    Restituisce il nome corretto del campo da usare nelle aggregazioni.
+    
+    Esempi:
+    - category text + keyword -> category.keyword
+    - city keyword -> city
+    - price float -> price
+    - description text senza keyword -> None
+    """
+
+    mapping = es.indices.get_mapping(index=index)
+
+    index_mapping = mapping[index]["mappings"]["properties"]
+
+    parts = field.split(".")
+    node = index_mapping
+
+    for part in parts:
+        if part not in node:
+            return None
+
+        field_def = node[part]
+
+        # Se non siamo ancora all'ultimo pezzo, scendiamo nelle properties
+        if part != parts[-1]:
+            if "properties" in field_def:
+                node = field_def["properties"]
+            else:
+                return None
+
+    field_type = field_def.get("type")
+
+    # Caso 1: campo già aggregabile
+    if field_type in ["keyword", "integer", "long", "float", "double", "date", "boolean"]:
+        return field
+
+    # Caso 2: campo text con sotto-campo keyword
+    if field_type == "text":
+        fields = field_def.get("fields", {})
+        if "keyword" in fields and fields["keyword"].get("type") == "keyword":
+            return f"{field}.keyword"
+
+    # Caso 3: campo non aggregabile
+    return None
 
 @router.get("/field-values")
 def get_field_values(index: str = Query(...), field: str = Query(...)):
-    """Restituisce i valori unici di un campo (per popolare i filtri)."""
+
+    """Restituisce i valori unici di un campo per popolare i filtri."""
+
+    print(f"Getting field values for index='{index}', field='{field}'")
+
     try:
-        resp = _get_es().search(
+
+        es = _get_es()
+
+        agg_field = get_aggregatable_field(es, index, field)
+
+        if agg_field is None:
+
+            print(f"Field '{field}' is not aggregatable")
+
+            return {"values": []}
+
+        print(f"Using aggregation field: {agg_field}")
+
+        resp = es.search(
+
             index=index,
-            size=1000,
-            query={"match_all": {}},
-            source=[field],
+
+            size=0,
+
+            aggs={
+
+                "unique_values": {
+
+                    "terms": {
+
+                        "field": agg_field,
+
+                        "size": 10000
+
+                    }
+
+                }
+
+            }
+
         )
-        values: set[str] = set()
-        parts = field.split(".")
-        for hit in resp["hits"]["hits"]:
-            node = hit["_source"]
-            for part in parts:
-                if isinstance(node, dict):
-                    node = node.get(part, "")
-                else:
-                    node = ""
-                    break
-            if node:
-                values.add(str(node))
+
+        buckets = resp["aggregations"]["unique_values"]["buckets"]
+
+        values = [bucket["key"] for bucket in buckets]
+
+        print(f"Found values for field '{field}': {values}")
+
         return {"values": sorted(values)}
-    except Exception:
+
+    except Exception as e:
+
+        print("Error while getting field values:", e)
+
         return {"values": []}
 
 
