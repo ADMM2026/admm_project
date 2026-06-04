@@ -5,14 +5,14 @@ from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-def get_db():
-    load_dotenv()
-    uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true")
-    client = MongoClient(uri)
-    return client[os.getenv("MONGO_DB_NAME", "Tourism")]
+load_dotenv()
 
-def add_manager(name, username, password, email):
-    db = get_db()
+def get_db(uri, db_name):
+    client = MongoClient(uri)
+    return client[db_name]
+
+def add_manager(uri, db_name, name, username, password, email):
+    db = get_db(uri, db_name)
     users = db["users"]
     
     if users.find_one({"username": username}):
@@ -33,8 +33,8 @@ def add_manager(name, username, password, email):
     users.insert_one(user_doc)
     print(f"Success: Manager '{username}' added correctly.")
 
-def remove_manager(username):
-    db = get_db()
+def remove_manager(uri, db_name, username):
+    db = get_db(uri, db_name)
     users = db["users"]
     
     result = users.delete_one({"username": username, "role": "manager"})
@@ -45,26 +45,32 @@ def remove_manager(username):
         print(f"Error: Manager '{username}' not found.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Add or remove a manger account")
-    subparsers = parser.add_subparsers(dest="action", required=True, help="Action to perform (add / remove)")
-    
-
-    add_parser = subparsers.add_parser("add", help="add a manager account ")
-    add_parser.add_argument("--name", required=True, help="add manager's name")
-    add_parser.add_argument("--username", required=True, help="add manager's surname")
-    add_parser.add_argument("--password", required=True, help="add manager's password")
-    add_parser.add_argument("--email", default="", help="add manager's email")
-    
-
-    remove_parser = subparsers.add_parser("remove", help="delete an existing manager account ")
-    remove_parser.add_argument("--username", required=True, help="delete by manager's username")
+    parser = argparse.ArgumentParser(description="Add or remove a manager account")
+    parser.add_argument("--mongo-uri", type=str, 
+                        default=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"), 
+                        help="MongoDB connection URI.")
+    parser.add_argument("--mongo-db", type=str,
+                        default=os.getenv("MONGO_DB_NAME", "Tourism"),
+                        help="MongoDB database name.")
+    parser.add_argument("--action", type=str, choices=["add", "remove"], required=True, 
+                        help="Action to perform (add / remove)")
+    parser.add_argument("--name", type=str, 
+                        help="Manager's name -> required for 'add'")
+    parser.add_argument("--username", type=str, required=True, 
+                        help="Manager's username")
+    parser.add_argument("--password", type=str, 
+                        help="Manager's password -> required for 'add'")
+    parser.add_argument("--email", type=str, default="", 
+                        help="Manager's email")
     
     args = parser.parse_args()
     
     if args.action == "add":
-        add_manager(args.name, args.username, args.password, args.email)
+        if not args.name or not args.password:
+            parser.error("--name and --password are required for the 'add' action")
+        add_manager(args.mongo_uri, args.mongo_db, args.name, args.username, args.password, args.email)
     elif args.action == "remove":
-        remove_manager(args.username)
+        remove_manager(args.mongo_uri, args.mongo_db, args.username)
 
 if __name__ == "__main__":
     main()
