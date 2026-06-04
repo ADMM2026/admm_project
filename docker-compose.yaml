@@ -134,23 +134,23 @@ services:
   #   depends_on:
   #     - elasticsearch
 
-  backend:
-    build:
-      context: ./back-end
-      dockerfile: Dockerfile
-    container_name: tourism-backend
-    ports:
-      - "8000:8000"
-    depends_on:
-      - mongo
-      - elasticsearch
-    environment:
-      - MONGO_URI=mongodb://mongo:27017/?directConnection=true
-      - MONGO_DB_NAME=${MONGO_DB_NAME:-Tourism}
-      - ES_HOST=http://elasticsearch:9200
-      - ES_USER=${ES_USER:-elastic}
-      - ES_PASSWORD=${ES_PASSWORD:-changeme}
-    restart: unless-stopped
+  # backend:
+  #   build:
+  #     context: ./back-end
+  #     dockerfile: Dockerfile
+  #   container_name: tourism-backend
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - mongo
+  #     - elasticsearch
+  #   environment:
+  #     - MONGO_URI=mongodb://mongo:27017/?directConnection=true
+  #     - MONGO_DB_NAME=${MONGO_DB_NAME:-Tourism}
+  #     - ES_HOST=http://elasticsearch:9200
+  #     - ES_USER=${ES_USER:-elastic}
+  #     - ES_PASSWORD=${ES_PASSWORD:-changeme}
+  #   restart: unless-stopped
 
 volumes:
   mongo-data:
