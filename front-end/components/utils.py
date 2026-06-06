@@ -1,23 +1,14 @@
-"""
-Shared utilities — CSS loading, session auth guard.
-"""
 import streamlit as st
 from pathlib import Path
 
 
 def load_css() -> None:
-    """Inject the shared style.css into the current page."""
     css_path = Path(__file__).parent.parent / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
 
 def require_login(allowed_roles: list[str] | None = None) -> dict:
-    """
-    Guard: if user is not in session_state, stop and show login link.
-    If allowed_roles is given, also checks the user's role.
-    Returns the user dict if auth passes.
-    """
     user = st.session_state.get("user")
     if not user:
         st.error("⛔ Devi effettuare il login per accedere a questa pagina.")

@@ -1,11 +1,9 @@
-/* ── Google Font ─────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* ── Hero section ─────────────────────────────────────────────────────────── */
 .hero-section {
     text-align: center;
     padding: 2.5rem 1rem 1.5rem;
@@ -28,7 +26,6 @@ html, body, [class*="css"] {
     font-weight: 300;
 }
 
-/* ── Metric cards ─────────────────────────────────────────────────────────── */
 .metric-card {
     background: rgba(167, 139, 250, 0.08);
     border: 1px solid rgba(167, 139, 250, 0.25);
@@ -53,7 +50,6 @@ html, body, [class*="css"] {
     color: #a78bfa;
 }
 
-/* ── Result cards ─────────────────────────────────────────────────────────── */
 .result-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -84,7 +80,6 @@ html, body, [class*="css"] {
     line-height: 1.5;
 }
 
-/* ── Badges ───────────────────────────────────────────────────────────────── */
 .badge {
     display: inline-block;
     border-radius: 5px;
@@ -110,7 +105,6 @@ html, body, [class*="css"] {
     color: #c4b5fd;
 }
 
-/* ── Section labels ───────────────────────────────────────────────────────── */
 .section-label {
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -127,7 +121,6 @@ html, body, [class*="css"] {
     margin-bottom: 0.4rem;
 }
 
-/* ── Animations ───────────────────────────────────────────────────────────── */
 @keyframes fadeInDown {
     from { opacity: 0; transform: translateY(-16px); }
     to   { opacity: 1; transform: translateY(0); }

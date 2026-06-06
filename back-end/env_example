@@ -1,0 +1,11 @@
+MONGO_URI=mongodb://localhost:27017/?directConnection=true
+MONGO_DB_NAME=Tourism
+ELASTICSEARCH_URL=http://localhost:9200
+# Se in futuro implementi l'autenticazione su ELK, aggiungi queste:
+ES_USER=elastic
+ES_PASSWORD=changeme
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_CONNECT_URL=http://localhost:8083
+PIEDMONT_REG_CODE=1
+GEO_EPSG_CRS=epsg:4326
+CORS_ALLOWED_ORIGINS=*

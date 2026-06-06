@@ -1,15 +1,11 @@
-"""
-MongoDB service — dettaglio documenti e recensioni via back-end FastAPI.
-Sostituisce la connessione diretta a MongoDB.
-"""
+import streamlit as st
 import requests
-from services.api_client import get, post, api_error_message
+from services.api_client import get, post
 
 
-def get_detail(collection: str, doc_id: str) -> dict | None:
-    """Recupera un documento completo da MongoDB tramite il back-end."""
+def get_details(collection: str, doc_id: str) -> dict | None:
     try:
-        return get(f"/detail/{collection}/{doc_id}")
+        return get(f"/details/{collection}/{doc_id}")
     except requests.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
             return None
@@ -18,16 +14,14 @@ def get_detail(collection: str, doc_id: str) -> dict | None:
         return None
 
 
-def get_distinct_values(collection: str, field: str) -> list[str]:
-    """
-    Recupera valori distinti per un campo tramite Elasticsearch (field-values).
-    Mantenuto per compatibilità; usa il back-end search.
-    """
+@st.cache_data(ttl=300)
+def get_field_values(index: str, field: str) -> list[str]:
     try:
-        data = get("/search/field-values", params={"index": collection, "field": field})
+        data = get("/search/field-values", params={"index": index, "field": field})
         return data.get("values", [])
     except Exception:
         return []
+
 
 
 def add_review(
@@ -37,7 +31,6 @@ def add_review(
     rating: int,
     text: str,
 ) -> dict:
-    """Aggiunge una recensione a un documento tramite il back-end."""
     review = post(f"/reviews/{collection}/{doc_id}", json={
         "username": username,
         "rating": rating,
@@ -46,18 +39,5 @@ def add_review(
     return review
 
 
-def get_dashboard_stats() -> dict:
-    """
-    Statistiche aggregate per la dashboard manager.
-    Delega al back-end /dashboard/stats.
-    """
-    return get("/dashboard/stats")
-
-
-def get_map_data() -> dict:
-    """
-    Dati proiettati per la mappa Plotly.
-    Delega al back-end /dashboard/map-data.
-    Ritorna {'accommodations': [...], 'attractions': [...]}.
-    """
-    return get("/dashboard/map-data")
+def get_raw_data() -> dict:
+    return get("/dashboard/raw-data")

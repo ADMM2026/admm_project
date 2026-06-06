@@ -1,12 +1,8 @@
-"""
-Componenti per le recensioni — lista e form di inserimento.
-"""
 import streamlit as st
-from services import mongo_service
+from services.mongo_service import add_review
 
 
 def render_reviews(reviews: list[dict]) -> None:
-    """Mostra la lista delle recensioni in ordine cronologico inverso."""
     if not reviews:
         st.caption("Nessuna recensione ancora. Sii il primo a recensire!")
         return
@@ -34,7 +30,6 @@ def render_reviews(reviews: list[dict]) -> None:
 
 
 def render_add_review_form(collection: str, doc_id: str, username: str) -> None:
-    """Form inline per inviare una nuova recensione."""
     st.markdown("<p class='section-label'>Aggiungi la tua recensione</p>", unsafe_allow_html=True)
 
     with st.form(key=f"review_form_{doc_id}", clear_on_submit=True):
@@ -50,6 +45,6 @@ def render_add_review_form(collection: str, doc_id: str, username: str) -> None:
         if not text.strip():
             st.warning("Scrivi un commento prima di inviare.")
             return
-        mongo_service.add_review(collection, doc_id, username, rating, text.strip())
+        add_review(collection, doc_id, username, rating, text.strip())
         st.success("Recensione pubblicata!")
         st.rerun()

@@ -68,8 +68,6 @@ services:
       - KEY_CONVERTER_SCHEMAS_ENABLE=false
       - VALUE_CONVERTER_SCHEMAS_ENABLE=false
       - CONNECT_PLUGIN_PATH=/kafka/connect,/usr/share/java,/opt/confluent/share/confluent-hub-components
-    volumes:
-      - ./plugins:/kafka/connect
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
@@ -133,24 +131,6 @@ services:
   #     - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
   #   depends_on:
   #     - elasticsearch
-
-  # backend:
-  #   build:
-  #     context: ./back-end
-  #     dockerfile: Dockerfile
-  #   container_name: tourism-backend
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - mongo
-  #     - elasticsearch
-  #   environment:
-  #     - MONGO_URI=mongodb://mongo:27017/?directConnection=true
-  #     - MONGO_DB_NAME=${MONGO_DB_NAME:-Tourism}
-  #     - ES_HOST=http://elasticsearch:9200
-  #     - ES_USER=${ES_USER:-elastic}
-  #     - ES_PASSWORD=${ES_PASSWORD:-changeme}
-  #   restart: unless-stopped
 
 volumes:
   mongo-data:

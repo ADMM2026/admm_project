@@ -1,26 +1,18 @@
-"""
-Entry point — Login / Registrazione.
-Dopo il login, redirect automatico in base al ruolo:
-  tourist  -> pages/ricerca.py
-  manager  -> pages/dashboard.py
-"""
 import streamlit as st
 from components.utils import load_css
 from services import auth
 
 st.set_page_config(
-    page_title="Piemonte Tourism — Login",
+    page_title="Piemonte Turismo - Login",
     page_icon="P",
     layout="centered",
 )
 load_css()
 
-# ── Se gia loggato, redirect ───────────────────────────────────────────────────
 if st.session_state.get("user"):
     role = st.session_state["user"].get("role")
-    st.switch_page("pages/dashboard.py" if role == "manager" else "pages/ricerca.py")
+    st.switch_page("pages/dashboard.py" if role == "manager" else "pages/search.py")
 
-# ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(
     """
     <div class="hero-section">
@@ -33,10 +25,8 @@ st.markdown(
 
 st.divider()
 
-# ── Tabs Login / Registrazione ────────────────────────────────────────────────
 tab_login, tab_reg = st.tabs(["Accedi", "Registrati"])
 
-# ── LOGIN ─────────────────────────────────────────────────────────────────────
 with tab_login:
     st.write("")
     with st.form("form_login", clear_on_submit=False):
@@ -55,7 +45,6 @@ with tab_login:
             else:
                 st.error(msg)
 
-# ── REGISTRAZIONE ─────────────────────────────────────────────────────────────
 with tab_reg:
     st.write("")
     with st.form("form_register", clear_on_submit=True):
@@ -63,12 +52,6 @@ with tab_reg:
         new_email = st.text_input("Email (opzionale)")
         new_pw = st.text_input("Password", type="password")
         new_pw2 = st.text_input("Conferma password", type="password")
-        new_role = st.radio(
-            "Tipo di account",
-            options=["tourist", "manager"],
-            format_func=lambda r: "Turista" if r == "tourist" else "Manager",
-            horizontal=True,
-        )
         reg_btn = st.form_submit_button("Crea account", use_container_width=True, type="primary")
 
     if reg_btn:
@@ -79,7 +62,7 @@ with tab_reg:
         elif len(new_pw) < 6:
             st.warning("La password deve essere di almeno 6 caratteri.")
         else:
-            ok, msg = auth.register_user(new_user.strip(), new_pw, new_role, new_email.strip())
+            ok, msg = auth.register_user(new_user.strip(), new_pw, new_email.strip())
             if ok:
                 st.success(f"{msg} Ora puoi accedere dal tab Accedi.")
             else:

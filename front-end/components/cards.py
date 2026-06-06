@@ -1,6 +1,3 @@
-"""
-Card components per attrazioni e alloggi.
-"""
 import streamlit as st
 
 
@@ -14,10 +11,6 @@ def _location_str(item: dict) -> str:
 
 
 def render_attraction_card(item: dict, idx: int) -> bool:
-    """
-    Renders a card for an attraction.
-    Returns True if the user clicked 'Vedi dettagli'.
-    """
     name = item.get("name", "N/D")
     category = item.get("category", "")
     location = _location_str(item)
@@ -44,10 +37,6 @@ def render_attraction_card(item: dict, idx: int) -> bool:
 
 
 def render_accommodation_card(item: dict, idx: int) -> bool:
-    """
-    Renders a card for an accommodation.
-    Returns True if the user clicked 'Vedi dettagli'.
-    """
     name = item.get("name", "N/D")
     structure_type = item.get("structure_type", "")
     stars = item.get("stars")

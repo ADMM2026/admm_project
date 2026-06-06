@@ -1,23 +1,19 @@
-"""
-Filtri sidebar per attrazioni e alloggi.
-"""
 import streamlit as st
-from services.mongo_service import get_distinct_values
+from services.mongo_service import get_field_values
 
 
 def attraction_filters() -> dict:
-    """Filtri sidebar per attrazioni. Ritorna { provinces, categories }."""
     st.sidebar.markdown("### Filtri")
 
     provinces = st.sidebar.multiselect(
         "Provincia",
-        options=get_distinct_values("attractions", "location.province"),
+        options=get_field_values("attractions", "location.province"),
         placeholder="Tutte",
         key="att_provinces",
     )
     categories = st.sidebar.multiselect(
         "Categoria",
-        options=get_distinct_values("attractions", "category"),
+        options=get_field_values("attractions", "category"),
         placeholder="Tutte",
         key="att_categories",
     )
@@ -25,18 +21,17 @@ def attraction_filters() -> dict:
 
 
 def accommodation_filters() -> dict:
-    """Filtri sidebar per alloggi. Ritorna { provinces, structure_types, stars_range }."""
     st.sidebar.markdown("### Filtri")
 
     provinces = st.sidebar.multiselect(
         "Provincia",
-        options=get_distinct_values("accommodations", "location.province"),
+        options=get_field_values("accommodations", "location.province"),
         placeholder="Tutte",
         key="acc_provinces",
     )
     structure_types = st.sidebar.multiselect(
         "Tipo struttura",
-        options=get_distinct_values("accommodations", "structure_type"),
+        options=get_field_values("accommodations", "structure_type"),
         placeholder="Tutti",
         key="acc_types",
     )
