@@ -132,7 +132,7 @@ pip install -r front-end/requirements.txt
 cd back-end
 python startup.py
 
-# In another terminal — populate MongoDB with initial data (from the project root)
+# In another terminal — populate MongoDB with initial data
 cd ..
 python -m seeders.seed_attractions
 python -m seeders.seed_accommodations
@@ -206,16 +206,6 @@ The front-end will be available at `http://localhost:8501`.
 
 ---
 
-## Advanced Configuration
-
-### Optional services (commented out in docker-compose)
-The `docker-compose.yaml` includes commented configurations for additional services that can be enabled:
-- **Kibana** (port 5601) — Elasticsearch index visualization
-- **InfluxDB** (port 8086) — time-series metrics
-- **Neo4j** (port 7474/7687) — relationship graphs
-- **Logstash** (port 5044) — alternative ETL pipeline
-
-To enable them, uncomment the corresponding sections in `docker-compose.yaml`.
 
 ### Full data reset
 
