@@ -54,8 +54,8 @@ services:
       - kafka
       - mongo
       - elasticsearch
+      - neo4j
       # - influxdb
-      # - neo4j
       # - logstash
     environment:
       - BOOTSTRAP_SERVERS=kafka:9092
@@ -106,18 +106,18 @@ services:
   #   volumes:
   #     - influxdb-data:/var/lib/influxdb2
 
-  # neo4j:
-  #   image: neo4j:5.20
-  #   container_name: tourism-neo4j
-  #   ports:
-  #     - "7474:7474"
-  #     - "7687:7687"
-  #   environment:
-  #     - NEO4J_AUTH=admin/admin
-  #     - NEO4J_PLUGINS=["apoc"]
-  #   volumes:
-  #     - neo4j-data:/data
-  #     - neo4j-logs:/logs
+  neo4j:
+    image: neo4j:5.20
+    container_name: tourism-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/adminneo4j
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
 
   # logstash:
   #   image: docker.elastic.co/logstash/logstash:8.15.0
@@ -135,6 +135,6 @@ services:
 volumes:
   mongo-data:
   elasticsearch-data:
+  neo4j-data:
+  neo4j-logs:
   # influxdb-data:
-  # neo4j-data:
-  # neo4j-logs:

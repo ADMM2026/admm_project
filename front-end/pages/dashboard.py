@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 from components.utils import load_css, require_login
+from components.filters import dashboard_manager_filters  
 from services.mongo_service import get_raw_data
 
 st.set_page_config(
@@ -47,36 +48,22 @@ def load_data():
 with st.spinner("Caricamento componenti analitici dal database distribuito..."):
     df_acc, df_att = load_data()
 
-st.sidebar.header("🎛️ Filtri Analitici")
-
-
-all_provinces = sorted(list(
-    set(df_acc["province"].dropna().unique() if not df_acc.empty else []) |
-    set(df_att["province"].dropna().unique() if not df_att.empty else [])
-))
-selected_province = st.sidebar.selectbox("Filtra per Provincia:", ["Tutte"] + all_provinces)
-
-available_types = sorted(df_acc["structure_type"].dropna().unique()) if not df_acc.empty else []
-selected_types = st.sidebar.multiselect("Tipologia Struttura:", available_types, default=available_types)
-
-available_cats = sorted(df_att["category"].dropna().unique()) if not df_att.empty else []
-selected_cats = st.sidebar.multiselect("Categoria Attrazione:", available_cats, default=available_cats)
-
+dash_filters = dashboard_manager_filters(df_acc, df_att)
 
 df_acc_filtered = df_acc.copy()
 df_att_filtered = df_att.copy()
 
-if selected_province != "Tutte":
-    df_acc_filtered = df_acc_filtered[df_acc_filtered["province"] == selected_province]
-    df_att_filtered = df_att_filtered[df_att_filtered["province"] == selected_province]
+if dash_filters["provinces"]:
+    df_acc_filtered = df_acc_filtered[df_acc_filtered["province"].isin(dash_filters["provinces"])]
+    df_att_filtered = df_att_filtered[df_att_filtered["province"].isin(dash_filters["provinces"])]
 
-if selected_types:
-    df_acc_filtered = df_acc_filtered[df_acc_filtered["structure_type"].isin(selected_types)]
+if dash_filters["structure_types"]:
+    df_acc_filtered = df_acc_filtered[df_acc_filtered["structure_type"].isin(dash_filters["structure_types"])]
 else:
     df_acc_filtered = df_acc_filtered.iloc[0:0] 
 
-if selected_cats:
-    df_att_filtered = df_att_filtered[df_att_filtered["category"].isin(selected_cats)]
+if dash_filters["categories"]:
+    df_att_filtered = df_att_filtered[df_att_filtered["category"].isin(dash_filters["categories"])]
 else:
     df_att_filtered = df_att_filtered.iloc[0:0]
 
@@ -95,12 +82,10 @@ with col_logout:
 
 st.markdown("---")
 
-
+# Sezione KPI Metrics Cards
 k1, k2, k3, k4 = st.columns(4)
-
 total_rooms = int(df_acc_filtered["rooms"].sum()) if not df_acc_filtered.empty else 0
 total_beds = int(df_acc_filtered["beds"].sum()) if not df_acc_filtered.empty else 0
-
 
 all_ratings = []
 if not df_acc_filtered.empty:
@@ -120,7 +105,6 @@ kpis = [
 
 for col, (label, value, color) in zip([k1, k2, k3, k4], kpis):
     formatted_value = f"{value:,}" if isinstance(value, (int, float)) else str(value)
-    
     with col:
         st.markdown(
             f"""<div class="metric-card">
@@ -132,7 +116,7 @@ for col, (label, value, color) in zip([k1, k2, k3, k4], kpis):
 
 st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
-
+# Mappa Scatter Mapbox Georeferenziata
 st.subheader("🗺️ Mappa di Densità e Georeferenziazione Territoriale")
 if "lon" in df_total_map.columns and "lat" in df_total_map.columns:
     df_total_map = df_total_map.dropna(subset=["lon", "lat"])
@@ -151,9 +135,6 @@ if not df_total_map.empty:
             "data_type": True,
             "municipality": True,
             "province": True,
-            "structure_type": False,
-            "category": False,
-            "stars": False,
             "avg_rating": True,
             "size_marker": False,
             "lat": False, 
@@ -174,7 +155,7 @@ else:
 
 st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
-
+# Sezione Grafici Plotly Sottostanti
 left_chart_col, right_chart_col = st.columns(2)
 
 with left_chart_col:
@@ -215,7 +196,6 @@ with right_chart_col:
         st.plotly_chart(fig_beds, use_container_width=True)
     else:
         st.info("Dati di capacità (posti letto) non disponibili per la selezione corrente.")
-
 
 st.markdown("---")
 st.markdown("#### Monitoraggio delle metriche temporali")

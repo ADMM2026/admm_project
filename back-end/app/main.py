@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
-from app.routers import auth, search, details, reviews, dashboard
+from app.routers import auth, search, details, reviews, dashboard, geo
 
 load_dotenv()
 
@@ -37,6 +37,7 @@ app.include_router(search.router,    prefix="/search",    tags=["Search"])
 app.include_router(details.router,   prefix="/details",    tags=["Detail"])
 app.include_router(reviews.router,   prefix="/reviews",   tags=["Reviews"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(geo.router,       prefix="/geo",       tags=["Graph Analytics"])
 
 
 @app.get("/health", tags=["Health"])

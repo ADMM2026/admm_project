@@ -33,7 +33,7 @@ def render_attraction_card(item: dict, idx: int) -> bool:
         """,
         unsafe_allow_html=True,
     )
-    return st.button("Vedi dettagli", key=f"det_att_{idx}", use_container_width=True)
+    return st.button("Vedi dettagli", key=f"det_att_{idx}", width='stretch')
 
 
 def render_accommodation_card(item: dict, idx: int) -> bool:
@@ -58,4 +58,4 @@ def render_accommodation_card(item: dict, idx: int) -> bool:
         """,
         unsafe_allow_html=True,
     )
-    return st.button("Vedi dettagli", key=f"det_acc_{idx}", use_container_width=True)
+    return st.button("Vedi dettagli", key=f"det_acc_{idx}", width='stretch')

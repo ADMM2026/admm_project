@@ -132,8 +132,8 @@ pip install -r front-end/requirements.txt
 cd back-end
 python startup.py
 
-# In another terminal — populate MongoDB with initial data
-cd ..
+# In another terminal from the back-end directory — populate MongoDB with initial data
+cd back-end
 python -m seeders.seed_attractions
 python -m seeders.seed_accommodations
 ```
@@ -144,7 +144,6 @@ python -m seeders.seed_accommodations
 
 ```bash
 # From the back-end directory
-cd back-end
 uvicorn app.main:app --reload --port 8000
 ```
 

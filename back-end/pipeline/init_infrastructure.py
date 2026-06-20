@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from kafka import KafkaAdminClient
 from kafka.errors import UnknownTopicOrPartitionError
+from neo4j import GraphDatabase
 
 
 load_dotenv()
@@ -13,6 +14,26 @@ CONNECT_URL = os.getenv("KAFKA_CONNECT_URL", "http://localhost:8083/connectors")
 if not CONNECT_URL.endswith("/connectors") and "localhost:8083" in CONNECT_URL:
     CONNECT_URL = f"{CONNECT_URL.rstrip('/')}/connectors"
 ES_URL = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
+
+
+
+def reset_neo4j(fresh_start=False):
+    if not fresh_start:
+        return
+    
+    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    user = os.getenv("NEO4J_USER", "admin")
+    password = os.getenv("NEO4J_PASSWORD", "password")
+    
+    print("[INFO] Cleaning up Neo4j Graph Database (--fresh)...")
+    try:
+        with GraphDatabase.driver(uri, auth=(user, password)) as driver:
+            with driver.session() as session:
+                session.run("MATCH (n) DETACH DELETE n")
+                print("[SUCCESS] Neo4j database cleared successfully.")
+    except Exception as e:
+        print(f"[WARNING] Could not clear Neo4j: {e}")
+
 
 def init_elasticsearch_indices(fresh_start=False):
     mapping_template = {

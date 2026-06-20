@@ -4,6 +4,8 @@ from components.utils import load_css, require_login
 from components.cards import render_attraction_card, render_accommodation_card
 from components.filters import attraction_filters, accommodation_filters
 from services.es_service import search_attractions, search_accommodations, count_index
+from streamlit_folium import st_folium
+import folium
 
 st.set_page_config(
     page_title="Piemonte Turismo — Ricerca",
@@ -122,13 +124,47 @@ if hits:
     col_map_view, col_cards = st.columns([3, 2])
 
     with col_map_view:
-        st.markdown("<p class='map-title'>Mappa</p>", unsafe_allow_html=True)
+        st.markdown("<p class='map-title'>Mappa dei Risultati</p>", unsafe_allow_html=True)
         geo = extract_geo(hits)
+        
+        # Latitudine e Longitudine medie per centrare la mappa in base ai risultati
         if geo:
-            st.map(pd.DataFrame(geo), latitude="lat", longitude="lon", size=60)
+            df_geo = pd.DataFrame(geo)
+            center_lat = df_geo["lat"].mean()
+            center_lon = df_geo["lon"].mean()
+            
+            # Creiamo la mappa Folium coerente con la pagina details
+            m_search = folium.Map(location=[center_lat, center_lon], zoom_start=9, control_scale=True)
+            
+            # Colore coerente: Verde per attrazioni, Rosso per alloggi
+            marker_color = "green" if active_index == "attractions" else "red"
+            marker_icon = "landmark" if active_index == "attractions" else "home"
+            
+            for item in hits:
+                coords = item.get("coordinates")
+                item_name = item.get("name", "Risultato")
+                
+                # Parsing sicuro delle coordinate del singolo hit
+                lat, lon = None, None
+                if isinstance(coords, list) and len(coords) == 2:
+                    lon, lat = float(coords[0]), float(coords[1])
+                elif isinstance(coords, dict):
+                    lat = coords.get("lat") or coords.get("latitude")
+                    lon = coords.get("lon") or coords.get("longitude")
+                
+                if lat and lon:
+                    folium.Marker(
+                        location=[float(lat), float(lon)],
+                        tooltip=item_name,
+                        icon=folium.Icon(color=marker_color, icon=marker_icon)
+                    ).add_to(m_search)
+            
+            # Visualizzazione mappa senza intercettare click (solo overview)
+            st_folium(m_search, width=700, height=500, key="search_global_map", returned_objects=[])
         else:
-            st.map(pd.DataFrame([{"lat": 45.07, "lon": 7.68}]), zoom=8)
-
+            # Fallback Piemonte se i risultati non hanno coordinate valide
+            m_fallback = folium.Map(location=[45.07, 7.68], zoom_start=8)
+            st_folium(m_fallback, width=700, height=500, key="search_fallback_map", returned_objects=[])
     with col_cards:
         limit = st.session_state["result_limit"]
         st.markdown(

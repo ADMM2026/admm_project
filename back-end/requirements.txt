@@ -17,3 +17,4 @@ python-dotenv>=1.0.0
 requests>=2.32.0
 urllib3>=1.26.0
 bcrypt>=4.0.0
+neo4j>=6.2.0

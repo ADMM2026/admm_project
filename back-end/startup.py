@@ -2,12 +2,13 @@ import subprocess
 import sys
 import os
 import argparse
-from pipeline.init_infrastructure import init_elasticsearch_indices, start_debezium, reset_kafka
+from pipeline.init_infrastructure import init_elasticsearch_indices, start_debezium, reset_kafka, reset_neo4j
 
 def main(args):
     print("[1/2] Initializing streaming infrastructure...")
     try:
         reset_kafka(fresh_start=args.fresh) 
+        reset_neo4j(fresh_start=args.fresh)
         init_elasticsearch_indices(fresh_start=args.fresh)
         start_debezium(fresh_start=args.fresh)   
     except Exception as e:

@@ -2,6 +2,7 @@ import os
 import urllib3
 from pymongo import MongoClient
 from elasticsearch import Elasticsearch
+from neo4j import GraphDatabase
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,6 +10,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _mongo_client = None
 _es_client = None
+_neo4j_driver = None
 
 
 def get_mongo():
@@ -33,3 +35,14 @@ def get_es() -> Elasticsearch:
             verify_certs=False,
         )
     return _es_client
+
+
+    
+def get_neo4j():
+    global _neo4j_driver
+    if _neo4j_driver is None:
+        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        user = os.getenv("NEO4J_USER", "user")
+        password = os.getenv("NEO4J_PASSWORD", "password")
+        _neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
+    return _neo4j_driver
