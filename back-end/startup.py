@@ -2,21 +2,34 @@ import subprocess
 import sys
 import os
 import argparse
+from dotenv import load_dotenv
 from pipeline.init_infrastructure import init_elasticsearch_indices, start_debezium, reset_kafka, reset_neo4j
+from seeders.seed_manager import seed_manager
+
+load_dotenv()
 
 
 def main(args):
-    print("[1/2] Initializing streaming infrastructure...")
+    print("[1/3] Initializing streaming infrastructure...")
     try:
-        reset_kafka(fresh_start=args.fresh) 
+        reset_kafka(fresh_start=args.fresh)
         reset_neo4j(fresh_start=args.fresh)
         init_elasticsearch_indices(fresh_start=args.fresh)
-        start_debezium(fresh_start=args.fresh)   
+        start_debezium(fresh_start=args.fresh)
     except Exception as e:
         print(f"[CRITICAL] Error during infrastructure initialization: {e}")
         sys.exit(1)
 
-    print("[2/2] Starting dual real-time data processors (ELK + Neo4j)...")
+    print("[2/3] Ensuring default manager account exists...")
+    try:
+        seed_manager(
+            mongo_uri=os.getenv("MONGO_URI", "mongodb://localhost:27017/?directConnection=true"),
+            mongo_db=os.getenv("MONGO_DB_NAME", "Tourism"),
+        )
+    except Exception as e:
+        print(f"[WARNING] Could not seed manager account: {e}")
+
+    print("[3/3] Starting dual real-time data processors (ELK + Neo4j)...")
     processor_elk = os.path.join("pipeline", "processor_elk.py")
     processor_neo4j = os.path.join("pipeline", "processor_neo4j.py")
     
