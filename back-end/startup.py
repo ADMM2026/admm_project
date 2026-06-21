@@ -2,27 +2,11 @@ import subprocess
 import sys
 import os
 import argparse
-from datetime import datetime, timezone
-import bcrypt
 from pipeline.init_infrastructure import init_elasticsearch_indices, start_debezium, reset_kafka, reset_neo4j
-from app.database import get_mongo
 
-
-def ensure_admin_exists():
-    db = get_mongo()
-    db["users"].delete_one({"username": "admin"})
-    pw_hash = bcrypt.hashpw("admin".encode("utf-8"), bcrypt.gensalt())
-    db["users"].insert_one({
-        "username": "admin",
-        "password_hash": pw_hash,
-        "role": "manager",
-        "email": "",
-        "created_at": datetime.now(timezone.utc),
-    })
-    print("[STARTUP] Account manager 'admin' created successfully.")
 
 def main(args):
-    print("[1/3] Initializing streaming infrastructure...")
+    print("[1/2] Initializing streaming infrastructure...")
     try:
         reset_kafka(fresh_start=args.fresh) 
         reset_neo4j(fresh_start=args.fresh)
@@ -32,14 +16,7 @@ def main(args):
         print(f"[CRITICAL] Error during infrastructure initialization: {e}")
         sys.exit(1)
 
-    if args.fresh:
-        print("[2/3] Creating default manager account...")
-        try:
-            ensure_admin_exists()
-        except Exception as e:
-            print(f"[WARNING] Could not create admin account: {e}")
-
-    print("[3/3] Starting dual real-time data processors (ELK + Neo4j)...")
+    print("[2/2] Starting dual real-time data processors (ELK + Neo4j)...")
     processor_elk = os.path.join("pipeline", "processor_elk.py")
     processor_neo4j = os.path.join("pipeline", "processor_neo4j.py")
     
