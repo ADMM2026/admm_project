@@ -1,0 +1,160 @@
+import sys
+
+if sys.platform == 'win32':
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+
+    import selectors
+    _orig_unregister = selectors.SelectSelector.unregister
+    def _safe_unregister(self, fileobj):
+        try:
+            return _orig_unregister(self, fileobj)
+        except (ValueError, KeyError):
+            pass
+    selectors.SelectSelector.unregister = _safe_unregister
+
+import json
+import os
+from kafka import KafkaConsumer
+from neo4j import GraphDatabase
+from dotenv import load_dotenv
+
+load_dotenv()
+
+neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
+neo4j_max_dist = float(os.getenv("NEO4J_MAX_DISTANCE_METERS", "5000"))
+
+neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+
+
+def extract_mongo_id(payload):
+    """
+    Estrae l'ObjectId MongoDB dal payload Debezium.
+    Prova prima da 'after', poi da 'before', poi da 'documentKey'/'filter'.
+    Il formato atteso dell'_id è: {"$oid": "..."} oppure una stringa diretta.
+    """
+    for field in ("after", "before"):
+        raw = payload.get(field)
+        if raw:
+            try:
+                data = json.loads(raw)
+                oid = data.get("_id")
+                if isinstance(oid, dict):
+                    return oid.get("$oid") or str(oid)
+                if oid:
+                    return str(oid)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+    for field in ("documentKey", "filter"):
+        raw = payload.get(field)
+        if raw:
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else raw
+                oid = data.get("_id")
+                if isinstance(oid, dict):
+                    return oid.get("$oid") or str(oid)
+                if oid:
+                    return str(oid)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+    return None
+
+
+def index_in_neo4j(label, doc_id, name, coords):
+    label_capitalized = "Accommodation" if label == "accommodations" else "Attraction"
+    opposite_label = "Attraction" if label == "accommodations" else "Accommodation"
+
+    cypher_upsert = f"""
+    MERGE (n:{label_capitalized} {{id: $id}})
+        SET n.name = $name,
+            n.location = point({{latitude: $lat, longitude: $lon}})
+        WITH n
+
+        MATCH (n)-[r:NEAR_TO]-()
+        DELETE r
+        WITH n
+
+        MATCH (m:{opposite_label})
+        WHERE m.id <> n.id AND point.distance(n.location, m.location) <= $max_dist
+        WITH n, m, point.distance(n.location, m.location) / 1000.0 AS dist_km
+        MERGE (n)-[r:NEAR_TO]->(m)
+        SET r.distance_km = dist_km
+    """
+    with neo4j_driver.session() as session:
+        session.run(cypher_upsert, id=str(doc_id), name=name, lat=float(coords[1]), lon=float(coords[0]), max_dist=neo4j_max_dist)
+
+
+def delete_from_neo4j(label, doc_id):
+    label_capitalized = "Accommodation" if label == "accommodations" else "Attraction"
+    cypher_delete = f"""
+        MATCH (n:{label_capitalized} {{id: $id}})
+        DETACH DELETE n
+    """
+    with neo4j_driver.session() as session:
+        session.run(cypher_delete, id=str(doc_id))
+
+
+def main():
+    print("[NEO4J PROCESSOR] Starting independent geospatial graph consumer...")
+
+    consumer = KafkaConsumer(
+        "Tourism.Tourism.accommodations",
+        "Tourism.Tourism.attractions",
+        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092").split(","),
+        group_id="neo4j-processor-group",
+        auto_offset_reset="earliest",
+        value_deserializer=lambda x: json.loads(x.decode("utf-8")) if x is not None else None
+    )
+
+    try:
+        for message in consumer:
+            if message.value is None:
+                continue
+            try:
+                payload = message.value.get("payload", {}) if message.value else {}
+                op = payload.get("op")
+                topic = message.topic
+                target_label = "accommodations" if "accommodations" in topic else "attractions"
+
+                mongo_id = extract_mongo_id(payload)
+                if not mongo_id:
+                    print(f"[NEO4J WARNING] Could not extract _id from payload, skipping. op={op}")
+                    continue
+
+                if op == "d":
+                    print(f"[NEO4J] Detected DELETE for ID {mongo_id} from graph")
+                    delete_from_neo4j(target_label, mongo_id)
+                    continue
+
+                after_str = payload.get("after")
+                if not after_str:
+                    continue
+
+                raw_data = json.loads(after_str)
+                pos = raw_data.get("position", {})
+                coords = pos.get("coordinates") if isinstance(pos, dict) else None
+                name = raw_data.get("name", "N/D")
+
+                if coords and len(coords) == 2:
+                    index_in_neo4j(target_label, mongo_id, name, coords)
+                    print(f"[NEO4J SUCCESS] Updated Node & Relations for ID: {mongo_id} [Op: {op}]")
+                else:
+                    print(f"[NEO4J WARNING] No valid coordinates for ID {mongo_id}, skipping node upsert.")
+
+            except Exception as e:
+                print(f"[NEO4J ERROR] Failed to process graph mutation: {e}")
+                continue
+
+    except KeyboardInterrupt:
+        print("\n[NEO4J] Stopping consumer gracefully...")
+    finally:
+        consumer.close()
+        neo4j_driver.close()
+
+
+if __name__ == "__main__":
+    main()
