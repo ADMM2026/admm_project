@@ -27,3 +27,4 @@ back-end/app/static/images/attractions/*
 
 !back-end/app/static/images/accommodations/.gitkeep
 !back-end/app/static/images/attractions/.gitkeep
+*.json
