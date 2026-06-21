@@ -64,28 +64,44 @@ def extract_mongo_id(payload):
     return None
 
 
-def index_in_neo4j(label, doc_id, name, coords):
-    label_capitalized = "Accommodation" if label == "accommodations" else "Attraction"
-    opposite_label = "Attraction" if label == "accommodations" else "Accommodation"
+def index_in_neo4j(target_index: str, mongo_id: str, name: str, coords: list):
+    if not coords or len(coords) < 2:
+        return  
+    lon, lat = float(coords[0]), float(coords[1])
+    node_label = "Accommodation" if target_index == "accommodations" else "Attraction"
+    opposite_label = "Attraction" if node_label == "Accommodation" else "Accommodation"
 
-    cypher_upsert = f"""
-    MERGE (n:{label_capitalized} {{id: $id}})
+    query = """
+        CREATE (n:`""" + node_label + """` { id: $id })
         SET n.name = $name,
-            n.location = point({{latitude: $lat, longitude: $lon}})
+            n.location = point({ latitude: $lat, longitude: $lon })
+        
         WITH n
-
-        MATCH (n)-[r:NEAR_TO]-()
-        DELETE r
-        WITH n
-
-        MATCH (m:{opposite_label})
-        WHERE m.id <> n.id AND point.distance(n.location, m.location) <= $max_dist
-        WITH n, m, point.distance(n.location, m.location) / 1000.0 AS dist_km
-        MERGE (n)-[r:NEAR_TO]->(m)
-        SET r.distance_km = dist_km
+        MATCH (other:`""" + opposite_label + """`)
+        WHERE other.location IS NOT NULL 
+        AND point.distance(n.location, other.location) <= $max_distance
+        
+        WITH n, other, point.distance(n.location, other.location) / 1000.0 AS dist_km
+        
+        CREATE (n)-[r1:NEAR_TO]->(other)
+        SET r1.distance_km = dist_km
+        
+        CREATE (n)<-[r2:NEAR_TO]-(other)
+        SET r2.distance_km = dist_km
     """
-    with neo4j_driver.session() as session:
-        session.run(cypher_upsert, id=str(doc_id), name=name, lat=float(coords[1]), lon=float(coords[0]), max_dist=neo4j_max_dist)
+
+    try:
+        with neo4j_driver.session() as session:
+            session.run(
+                query, 
+                id=mongo_id, 
+                name=name, 
+                lat=lat, 
+                lon=lon, 
+                max_distance=neo4j_max_dist
+            )
+    except Exception as e:
+        print(f"[ERROR - Neo4j] Failed to index node/relations for {mongo_id}: {e}")
 
 
 def delete_from_neo4j(label, doc_id):
