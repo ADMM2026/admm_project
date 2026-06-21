@@ -144,7 +144,7 @@ python -m seeders.seed_accommodations
 
 ```bash
 # From the back-end directory
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 The back-end will be available at `http://localhost:8000`.  
@@ -154,7 +154,7 @@ Interactive Swagger documentation: `http://localhost:8000/docs`
 
 ```bash
 cd front-end
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 The front-end will be available at `http://localhost:8501`.
