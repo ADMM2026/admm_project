@@ -19,7 +19,7 @@ def ensure_admin_exists():
         "email": "",
         "created_at": datetime.now(timezone.utc),
     })
-    print("[STARTUP] Account manager 'admin' creato con successo.")
+    print("[STARTUP] Account manager 'admin' created successfully.")
 
 def main(args):
     print("[1/3] Initializing streaming infrastructure...")
