@@ -8,10 +8,11 @@ from app.routers import auth, search, details, reviews, dashboard, geo
 load_dotenv()
 
 
+
 app = FastAPI(
     title="Piemonte Sistema Turistico API",
     description="Back-end REST per il sistema turistico del Piemonte coordinato con MongoDB ed Elasticsearch.",
-    version="1.0.0",
+    version="1.0.0"
 )
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
