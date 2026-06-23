@@ -268,7 +268,7 @@ if img_field and str(img_field).strip() and str(img_field) != "N/D" and "placeho
 
 st.divider()
 st.subheader("💬 Recensioni degli Utenti")
-reviews_list = source.get("reviews", [])
+reviews_list = source.get("last_reviews", [])
 render_reviews(reviews_list)
 
 st.markdown("<div style='margin-top:1.5rem'></div>", unsafe_allow_html=True)

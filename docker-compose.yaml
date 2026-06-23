@@ -13,16 +13,30 @@ services:
     image: mongo:7.0
     container_name: tourism-mongo-init
     depends_on:
-      - mongo
+    - mongo
     restart: "no"
-    command: >
-      mongosh --host mongo:27017 --eval
-      'rs.initiate({
-        _id: "rs0",
-        members: [
-          { _id: 0, host: "mongo:27017" }
-        ]
-      })'
+    entrypoint: >
+      bash -c "
+        echo '[mongo-init] Waiting for MongoDB to be ready...';
+        until mongosh --host mongo:27017 --eval 'db.adminCommand({ ping: 1 })' > /dev/null 2>&1; do
+          echo '[mongo-init] MongoDB not ready yet, retrying in 2s...';
+          sleep 2;
+        done;
+        echo '[mongo-init] MongoDB is ready. Initiating replica set...';
+        mongosh --host mongo:27017 --eval '
+          try {
+            rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongo:27017\" }] });
+            print(\"[mongo-init] rs.initiate() OK\");
+          } catch(e) {
+            if (e.codeName === \"AlreadyInitialized\") {
+              print(\"[mongo-init] Replica set already initialized, skipping.\");
+            } else {
+              print(\"[mongo-init] ERROR: \" + e);
+              quit(1);
+            }
+          }
+        '
+      "
 
   kafka:
     image: apache/kafka:3.7.0
@@ -41,7 +55,10 @@ services:
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined-logs
+      - CLUSTER_ID=tourism-cluster-id-12345
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
 
   connect:
     build:
@@ -123,4 +140,5 @@ volumes:
   elasticsearch-data:
   neo4j-data:
   neo4j-logs:
+  kafka-data:
   # influxdb-data:

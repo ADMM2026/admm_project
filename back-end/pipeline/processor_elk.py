@@ -18,55 +18,17 @@ import os
 from kafka import KafkaConsumer
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
+from common import extract_mongo_id
 
 load_dotenv()
 
 es_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
-es_user = os.getenv("ES_USER")
-es_password = os.getenv("ES_PASSWORD")
-auth = (es_user, es_password) if es_user and es_password else None
-
-es_client = Elasticsearch(es_url, basic_auth=auth, verify_certs=False)
-
-
-def extract_mongo_id(payload):
-    """
-    Estrae l'ObjectId MongoDB dal payload Debezium.
-    Prova prima da 'after', poi da 'before', poi da 'documentKey'/'filter'.
-    Il formato atteso dell'_id è: {"$oid": "..."} oppure una stringa diretta.
-    """
-    for field in ("after", "before"):
-        raw = payload.get(field)
-        if raw:
-            try:
-                data = json.loads(raw)
-                oid = data.get("_id")
-                if isinstance(oid, dict):
-                    return oid.get("$oid") or str(oid)
-                if oid:
-                    return str(oid)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-    for field in ("documentKey", "filter"):
-        raw = payload.get(field)
-        if raw:
-            try:
-                data = json.loads(raw) if isinstance(raw, str) else raw
-                oid = data.get("_id")
-                if isinstance(oid, dict):
-                    return oid.get("$oid") or str(oid)
-                if oid:
-                    return str(oid)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-    return None
+es_client = Elasticsearch(es_url, verify_certs=False)
 
 
 def process_reviews(raw_reviews) -> list[str]:
     if isinstance(raw_reviews, list):
-        return [str(r).strip() for r in raw_reviews if r]
+        return [str(r["text"]).strip() for r in raw_reviews if r]
     return []
 
 
@@ -92,7 +54,7 @@ def main():
                 topic = message.topic
                 target_index = "accommodations" if "accommodations" in topic else "attractions"
 
-                mongo_id = extract_mongo_id(payload)
+                mongo_id = extract_mongo_id(message.key)
                 if not mongo_id:
                     print(f"[ELK WARNING] Could not extract _id from payload, skipping. op={op}")
                     continue
@@ -107,28 +69,28 @@ def main():
                 if not after_str:
                     continue
 
-                raw_data = json.loads(after_str)
+                data = json.loads(after_str)
 
-                pos = raw_data.get("position", {})
+                pos = data.get("position", {})
                 coords = pos.get("coordinates") if isinstance(pos, dict) else None
 
                 if target_index == "accommodations":
                     elk_document = {
-                        "name": raw_data.get("name"),
-                        "structure_type": raw_data.get("structure_type"),
-                        "stars": raw_data.get("stars"),
-                        "location": raw_data.get("location"),
+                        "name": data.get("name"),
+                        "structure_type": data.get("structure_type"),
+                        "stars": data.get("stars"),
+                        "location": data.get("location"),
                         "coordinates": coords,
-                        "reviews": process_reviews(raw_data.get("reviews")),
+                        "reviews": process_reviews(data.get("last_reviews")),
                     }
                 else:
                     elk_document = {
-                        "name": raw_data.get("name"),
-                        "category": raw_data.get("category"),
-                        "description": raw_data.get("description"),
-                        "location": raw_data.get("location"),
+                        "name": data.get("name"),
+                        "category": data.get("category"),
+                        "description": data.get("description"),
+                        "location": data.get("location"),
                         "coordinates": coords,
-                        "reviews": process_reviews(raw_data.get("reviews")),
+                        "reviews": process_reviews(data.get("last_reviews")),
                     }
 
                 es_client.index(index=target_index, id=mongo_id, document=elk_document)

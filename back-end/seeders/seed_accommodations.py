@@ -197,6 +197,7 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
                 "email": email,
                 "website": f"www.{email.split('@')[1]}" if "gmail" not in email and "outlook" not in email and "yahoo" not in email else ""
             },
+            "last_reviews": [],
             "reviews": []
         }
 
@@ -219,8 +220,6 @@ def main(args):
     print(f"Database reset: removing data from collection '{COLLECTION_NAME}'...")
     collection.delete_many({}) 
 
-    print(f"Creating geospatial index on '{POSITION_FIELD}'...")
-    collection.create_index([(POSITION_FIELD, "2dsphere")])
     
     print(f"Inserting {len(accommodations)} documents into '{COLLECTION_NAME}'...")
     result = collection.insert_many(accommodations)

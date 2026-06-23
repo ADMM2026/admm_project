@@ -25,7 +25,7 @@ def parse_object_id(doc_id: str) -> ObjectId:
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato identificativo del documento (ID) non valido."
+            detail="Invalid document ID format. Must be a valid ObjectId."
         )
 
 @router.get("/{collection}/{doc_id}")
@@ -35,16 +35,16 @@ def get_reviews(
 ):
     if collection not in ALLOWED_COLLECTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Collezione non valida.")
+                            detail="Invalid collection.")
     
     db = get_mongo()
     mongo_id = parse_object_id(doc_id)
     
-    doc = db[collection].find_one({"_id": mongo_id}, {"reviews": 1})
+    doc = db[collection].find_one({"_id": mongo_id}, {"last_reviews": 1})
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Documento non trovato.")
-    return {"reviews": doc.get("reviews", [])}
+                            detail="Document not found.")
+    return {"reviews": doc.get("last_reviews", [])}
 
 
 @router.post("/{collection}/{doc_id}", response_model=ReviewResponse,
@@ -56,7 +56,7 @@ def add_review(
 ):
     if collection not in ALLOWED_COLLECTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Collezione non valida.")
+                            detail="Invalid collection.")
     
     db = get_mongo()
     mongo_id = parse_object_id(doc_id)
@@ -67,13 +67,34 @@ def add_review(
         "text": body.text,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    
-    result = db[collection].update_one(
+
+    new_review = review.copy()
+    new_review["site_id"] = str(mongo_id)
+    new_review["collection"] = collection
+
+    result = db["reviews"].insert_one(new_review)
+    inserted_id = str(result.inserted_id)
+
+    extended_reference_review = {
+        "_id": inserted_id,
+        "rating": body.rating
+    }
+
+    update_result = db[collection].update_one(
         {"_id": mongo_id},
-        {"$push": {"reviews": review}},
+        {
+            "$push": {
+                "last_reviews": {
+                    "$each": [review],
+                    "$sort": {"created_at": -1},  
+                    "$slice": 3                   
+                },
+                "reviews": extended_reference_review
+            }
+        }
     )
     
-    if result.matched_count == 0:
+    if update_result.matched_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Documento non trovato.")
+                            detail="Document not found.")
     return ReviewResponse(**review)

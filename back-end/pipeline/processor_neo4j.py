@@ -18,6 +18,7 @@ import os
 from kafka import KafkaConsumer
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
+from common import extract_mongo_id
 
 load_dotenv()
 
@@ -29,41 +30,6 @@ neo4j_max_dist = float(os.getenv("NEO4J_MAX_DISTANCE_METERS", "5000"))
 neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
 
 
-def extract_mongo_id(payload):
-    """
-    Estrae l'ObjectId MongoDB dal payload Debezium.
-    Prova prima da 'after', poi da 'before', poi da 'documentKey'/'filter'.
-    Il formato atteso dell'_id è: {"$oid": "..."} oppure una stringa diretta.
-    """
-    for field in ("after", "before"):
-        raw = payload.get(field)
-        if raw:
-            try:
-                data = json.loads(raw)
-                oid = data.get("_id")
-                if isinstance(oid, dict):
-                    return oid.get("$oid") or str(oid)
-                if oid:
-                    return str(oid)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-    for field in ("documentKey", "filter"):
-        raw = payload.get(field)
-        if raw:
-            try:
-                data = json.loads(raw) if isinstance(raw, str) else raw
-                oid = data.get("_id")
-                if isinstance(oid, dict):
-                    return oid.get("$oid") or str(oid)
-                if oid:
-                    return str(oid)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-    return None
-
-
 def index_in_neo4j(target_index: str, mongo_id: str, name: str, coords: list):
     if not coords or len(coords) < 2:
         return  
@@ -72,7 +38,7 @@ def index_in_neo4j(target_index: str, mongo_id: str, name: str, coords: list):
     opposite_label = "Attraction" if node_label == "Accommodation" else "Accommodation"
 
     query = """
-        CREATE (n:`""" + node_label + """` { id: $id })
+        MERGE (n:`""" + node_label + """` { id: $id })
         SET n.name = $name,
             n.location = point({ latitude: $lat, longitude: $lon })
         
@@ -83,10 +49,10 @@ def index_in_neo4j(target_index: str, mongo_id: str, name: str, coords: list):
         
         WITH n, other, point.distance(n.location, other.location) / 1000.0 AS dist_km
         
-        CREATE (n)-[r1:NEAR_TO]->(other)
+        MERGE (n)-[r1:NEAR_TO]->(other)
         SET r1.distance_km = dist_km
         
-        CREATE (n)<-[r2:NEAR_TO]-(other)
+        MERGE (n)<-[r2:NEAR_TO]-(other)
         SET r2.distance_km = dist_km
     """
 
@@ -136,7 +102,7 @@ def main():
                 topic = message.topic
                 target_label = "accommodations" if "accommodations" in topic else "attractions"
 
-                mongo_id = extract_mongo_id(payload)
+                mongo_id = extract_mongo_id(message.key)
                 if not mongo_id:
                     print(f"[NEO4J WARNING] Could not extract _id from payload, skipping. op={op}")
                     continue

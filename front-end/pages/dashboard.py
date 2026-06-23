@@ -169,11 +169,15 @@ with left_chart_col:
             x="Numero Strutture", 
             y="Tipo Struttura", 
             orientation='h',
-            color="Tipo Struttura", 
             template="plotly_dark", 
+            color_discrete_sequence=["#a78bfa"], 
             height=360
         )
-        fig_acc.update_layout(showlegend=False, margin={"t": 20, "b": 20})
+        
+        # AGGIUNTA: Forza l'ordine decrescente dall'alto verso il basso
+        fig_acc.update_yaxes(categoryorder="total ascending")
+        
+        fig_acc.update_layout(margin={"t": 20, "b": 20})
         st.plotly_chart(fig_acc, use_container_width=True)
     else:
         st.info("Nessun alloggio disponibile per i filtri correnti.")
@@ -189,7 +193,7 @@ with right_chart_col:
             values="beds", 
             names="province",
             hole=0.4, 
-            color_discrete_sequence=px.colors.sequential.Plotly3, 
+            color_discrete_sequence=px.colors.qualitative.Plotly, 
             height=360
         )
         fig_beds.update_layout(margin={"t": 20, "b": 20})
@@ -197,18 +201,101 @@ with right_chart_col:
     else:
         st.info("Dati di capacità (posti letto) non disponibili per la selezione corrente.")
 
+st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+left_chart_col_2, right_chart_col_2 = st.columns(2)
+
+with left_chart_col_2:
+    st.subheader("📊 Consistenza Attrazioni per Categoria")
+    if not df_att_filtered.empty:
+        df_count_att = df_att_filtered["category"].value_counts().reset_index()
+        df_count_att.columns = ["Categoria", "Numero Attrazioni"]
+
+        fig_att = px.bar(
+            df_count_att, 
+            x="Numero Attrazioni", 
+            y="Categoria", 
+            orientation='h',
+            template="plotly_dark", 
+            color_discrete_sequence=["#34d399"], # Colore verde richiesto per le attrazioni
+            height=360
+        )
+        fig_att.update_yaxes(categoryorder="total ascending")
+        fig_att.update_layout(margin={"t": 20, "b": 20})
+        st.plotly_chart(fig_att, use_container_width=True)
+    else:
+        st.info("Nessuna attrazione disponibile per i filtri correnti.")
+
+with right_chart_col_2:
+    st.subheader("⭐ Distribuzione Recensioni e Gradimento Attrazioni")
+    
+    # Estrazione di tutti i singoli score delle recensioni delle attrazioni
+    att_ratings = []
+    if not df_att_filtered.empty and "ratings" in df_att_filtered.columns:
+        for r_list in df_att_filtered["ratings"].dropna():
+            if isinstance(r_list, list):
+                att_ratings.extend(r_list)
+
+    if att_ratings:
+        # Calcolo distribuzione frequenze (da 1 a 5 stelle)
+        counts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
+        for r in att_ratings:
+            try:
+                val = int(np.round(float(r)))
+                if val in counts:
+                    counts[val] += 1
+            except (ValueError, TypeError):
+                pass
+        
+        total_reviews = len(att_ratings)
+        avg_rating = np.mean(att_ratings)
+        
+        # Sub-layout interno per dividere le barre di progressione dai dati aggregati a destra
+        sub_col_bars, sub_col_metrics = st.columns([1.7, 1])
+        
+        with sub_col_bars:
+            bars_html = ""
+            for star in [5, 4, 3, 2, 1]:
+                count = counts[star]
+                percentage = int(np.round(count / total_reviews * 100)) if total_reviews > 0 else 0
+                
+                # RISOLUZIONE: Concatenazione lineare senza ritorni a capo (\n) né spazi vuoti di tabulazione
+                bars_html += (
+                    f'<div style="display: flex; align-items: center; margin-bottom: 10px;">'
+                    f'<div style="width: 15px; font-size: 1.1rem; color: #94a3b8; text-align: right; margin-right: 15px; font-weight: 500;">{star}</div>'
+                    f'<div style="flex-grow: 1; background-color: #334155; height: 16px; border-radius: 8px; overflow: hidden;">'
+                    f'<div style="background-color: #f59e0b; width: {percentage}%; height: 100%; border-radius: 8px;"></div>'
+                    f'</div>'
+                    f'</div>'
+                )
+            st.markdown(f'<div style="padding-top: 20px;">{bars_html}</div>', unsafe_allow_html=True)
+            
+        with sub_col_metrics:
+            # Formattazione coerente con l'immagine (Virgola per decimali, Punto per le migliaia)
+            formatted_avg = f"{avg_rating:.1f}".replace('.', ',')
+            formatted_total = f"{total_reviews:,}".replace(',', '.')
+            
+            # Generazione stelle piene/vuote/mezza stella proporzionale
+            rounded_rating = int(np.round(avg_rating))
+            stars_symbols = "★" * rounded_rating + "☆" * (5 - rounded_rating)
+
+            st.markdown(f"""
+                <div style="text-align: center; padding-top: 10px; font-family: sans-serif;">
+                    <div style="font-size: 5rem; font-weight: 300; color: white; line-height: 1;">{formatted_avg}</div>
+                    <div style="color: #f59e0b; font-size: 1.6rem; letter-spacing: 2px; margin: 8px 0;">{stars_symbols}</div>
+                    <div style="font-size: 1.1rem; color: #94a3b8;">{formatted_total} recensioni</div>
+                </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("Dati di gradimento o recensioni non disponibili per le attrazioni filtrate.")
+
 st.markdown("---")
 st.markdown("#### Monitoraggio delle metriche temporali")
 st.markdown(
     """
     <div class="result-card" style="border-color:rgba(251,191,36,0.3); text-align:center; padding:2rem; background-color:rgba(30,41,59,0.5)">
       <div style="font-size:1.5rem; font-weight:600; color:#94a3b8">📊 Pipeline di Monitoraggio in Real-Time</div>
-      <div class="result-name" style="margin-top:0.5rem; color:#f59e0b">Integrazione InfluxDB & Telegraf (In Sviluppo)</div>
-      <p class="result-desc" style="max-width:700px; margin:0 auto; margin-top:0.5rem;">
-        I grafici delle serie temporali riguardanti l'andamento dei flussi di recensioni inserite dagli utenti, 
-        la frequenza oraria delle query di ricerca inviate a Elasticsearch e le telemetrie prestazionali dei container 
-        saranno visualizzabili qui non appena lo storage a serie temporali <strong>InfluxDB</strong> sarà agganciato al sistema.
-      </p>
+      <div class="result-name" style="margin-top:0.5rem; color:#f59e0b">Integrazione InfluxDB (In Sviluppo)</div>
+      
     </div>
     """,
     unsafe_allow_html=True,

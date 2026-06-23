@@ -91,7 +91,7 @@ with c1:
         unsafe_allow_html=True,
     )
 with c2:
-    label = "Attrazioni nel DB" if active_index == "attractions" else "Alloggi nel DB"
+    label = "Attrazioni totali" if active_index == "attractions" else "Alloggi totali"
     try:
         db_count = count_index(active_index)
     except Exception:

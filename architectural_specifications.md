@@ -149,38 +149,28 @@ Mapping Attractions
 #### Nodes and Edges structure:
 Node Accommodation
 ```json
-{
-    "labels": ["Accommodation"],
-    "properties": {
-        "id": "acc_12345", 
-        "name": "Hotel Piemonte",
-        "location": "point({latitude: 45.0708, longitude: 7.6840})" 
-    }
-}
+(:Accomodation{
+    id: "acc_12345", 
+    name: "Hotel Piemonte",
+    location: "point({latitude: 45.0708, longitude: 7.6840})" 
+})
 ```
 
 Node Attraction
 ```json
-{
-    "labels": ["Attraction"],
-    "properties": {
-        "id": "att_67890",
-        "name": "Museo Egizio",
-        "location": "point({latitude: 45.0684, longitude: 7.6844})"
-    }
-}
+(:Attraction{
+    id: "att_67890",
+    name: "Museo Egizio",
+    location: "point({latitude: 45.0684, longitude: 7.6844})"
+})
+
 ```
 
 
 Relation Accomodation, Attraction
 ```json
-{
-    "type": "NEAR_TO",
-    "directed": true,
-    "properties": {
-        "distance_km": 0.27 
-    }
-}
+(:Accomodation)-[:NEAR_TO {distance_km : 0.27}]-(:Attraction)
+
 ```
 
 ### 2.4 InfluxDB (Planned Specifications): Time-Series Storage

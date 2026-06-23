@@ -146,7 +146,9 @@ def csv_to_mongo_json(dir_attractions_paths, file_municipalities_path):
                 POSITION_FIELD: {
                     "type": "Point",
                     "coordinates": [lon, lat]
-                }
+                },
+                "last_reviews": [],
+                "reviews": []
             }
 
             if image_filename:
@@ -173,8 +175,6 @@ def main(args):
     print(f"Database reset: removing data from collection '{COLLECTION_NAME}'...")
     collection.delete_many({}) 
 
-    print(f"Creating geospatial index on '{POSITION_FIELD}'...")
-    collection.create_index([(POSITION_FIELD, "2dsphere")])
     print(f"Inserting {len(attractions)} documents into '{COLLECTION_NAME}'...")
     result = collection.insert_many(attractions)
     print(f"[SUCCESS] Successfully inserted {len(result.inserted_ids)} attractions.")
