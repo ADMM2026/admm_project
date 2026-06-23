@@ -1,14 +1,11 @@
-import os
 import streamlit as st
-import requests
 import folium
 from streamlit_folium import st_folium
 from components.utils import load_css, require_login
 from components.reviews import render_reviews, render_add_review_form
 from services.mongo_service import get_details
-
-# Configurazione API Backend
-BACKEND_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+from services.neo4j_service import fetch_graph_relations
+from services.api_client import BASE_URL
 
 st.set_page_config(
     page_title="Piemonte Turismo — Dettagli",
@@ -30,28 +27,8 @@ if not item or not collection:
 
 doc_id = item.get("_id", "")
 doc = get_details(collection, doc_id) if doc_id else None
-source = doc if doc else item  
+source = doc if doc else item
 
-# Funzione Caching per Neo4j
-@st.cache_data(ttl=60, show_spinner="Interrogazione relazioni geospaziali...")
-def fetch_graph_relations(collection_type: str, document_id: str):
-    try:
-        if collection_type == "accommodations":
-            url = f"{BACKEND_URL}/geo/accommodations/{document_id}/nearby-attractions"
-        else:
-            url = f"{BACKEND_URL}/geo/attractions/{document_id}/cluster-analysis"
-            
-        res = requests.get(url, timeout=6)
-        if res.status_code == 200:
-            if collection_type == "accommodations":
-                return res.json().get("nearby_attractions", [])
-            else:
-                return res.json().get("accommodation_hubs", [])
-    except Exception:
-        return "__TIMEOUT_OR_ERROR__"
-    return None
-
-# Navigazione superiore
 col_back, col_space, col_logout = st.columns([1.5, 4, 1])
 with col_back:
     if st.button("⬅️ Torna alla ricerca", use_container_width=True):
@@ -71,7 +48,7 @@ if isinstance(loc, dict):
     st.markdown(
         f"""<p style="font-size: 1.15rem; color: #94a3b8; margin-top: -1rem;">
             📍 Località: <strong>{loc.get('municipality', '')}</strong> ({loc.get('province', '')})
-        </p>""", 
+        </p>""",
         unsafe_allow_html=True
     )
 
@@ -82,23 +59,30 @@ with col_info:
         st.markdown(f"### 🏛️ Informazioni Attrazione")
         st.markdown(f"**Categoria:** <span class='badge badge-blue'>{source.get('category', '—')}</span>", unsafe_allow_html=True)
         st.markdown("<div style='margin-bottom:0.8rem'></div>", unsafe_allow_html=True)
-        
+
         desc = source.get("description", "")
         if desc:
             st.markdown("**Descrizione:**")
             st.markdown(f"<div class='result-desc' style='font-size:1rem; max-height:none;'>{desc}</div>", unsafe_allow_html=True)
-        
+
         extra = source.get("extra_info")
-        if extra:
+        if extra and isinstance(extra, dict):
+            labels = {
+                "scope": "Ambito", "subcategory": "Sottocategoria",
+                "cod": "Codice", "area_mq": "Area (m²)", "emergency": "Bene a rischio",
+            }
             st.markdown("<div style='margin-top:1rem'></div>", unsafe_allow_html=True)
             with st.expander("📊 Dati Tecnici Aggiuntivi"):
-                st.json(extra)
-    else:  
+                for k, v in extra.items():
+                    if isinstance(v, bool):
+                        v = "Sì" if v else "No"
+                    st.markdown(f"**{labels.get(k, k.replace('_', ' ').title())}:** {v}")
+    else:
         st.markdown(f"### 🏨 Dettagli Struttura Ricettiva")
         stars = source.get("stars")
         if stars and str(stars).isdigit():
             st.markdown(f"**Classificazione:** <span style='font-size:1.2rem;'>{'⭐' * int(stars)}</span> ({stars} stelle)", unsafe_allow_html=True)
-        
+
         st.markdown("<div style='margin-bottom:0.8rem'></div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
@@ -117,37 +101,30 @@ with col_info:
             if contacts.get("email"): st.markdown(f"- **Email:** {contacts['email']}")
             if contacts.get("website"): st.markdown(f"- **Sito:** [{contacts['website']}]({contacts['website']})")
 
-    st.markdown("<div style='margin-top:1.5rem'></div>", unsafe_allow_html=True)
-    show_graph = st.checkbox("🌐 Mostra Relazioni del Grafo (Entro 5km)", value=True)
-
 with col_map:
     pos = source.get("position", {})
     coords = pos.get("coordinates") if isinstance(pos, dict) else None
-    
+
     if coords and len(coords) == 2:
         center_lat, center_lon = float(coords[1]), float(coords[0])
         st.markdown("<p class='map-title' style='margin-bottom:0.3rem; font-weight:600;'>Mappa Geospaziale delle Relazioni</p>", unsafe_allow_html=True)
-        
+
         m = folium.Map(location=[center_lat, center_lon], zoom_start=13, control_scale=True)
-        graph_data = fetch_graph_relations(collection, doc_id) if (show_graph and doc_id) else None
-        
+        graph_data = fetch_graph_relations(collection, doc_id) if doc_id else None
+
         if graph_data == "__TIMEOUT_OR_ERROR__":
             st.caption("⚠️ *Grafo Neo4j non raggiungibile o query in timeout. Mappa in modalità standard.*")
             graph_data = None
 
-        # Dizionario di appoggio per mappare i click della mappa ("lat,lon") -> {"id": "...", "collection": "..."}
         marker_id_map = {}
 
-        # =====================================================================
-        # CASO A: ALLOGGIO (Prende lat/lon direttamente dal backend)
-        # =====================================================================
         if collection == "accommodations":
             folium.Marker(
                 location=[center_lat, center_lon],
                 popup=f"<b>{name}</b><br>(Alloggio Corrente)",
                 icon=folium.Icon(color="red", icon="home")
             ).add_to(m)
-            
+
             if isinstance(graph_data, list):
                 for att in graph_data:
                     att_id = att.get("id")
@@ -155,11 +132,10 @@ with col_map:
                     dist_km = att.get("distance_km", 0)
                     a_lat = att.get("latitude")
                     a_lon = att.get("longitude")
-                    
+
                     if a_lat and a_lon and att_id:
                         marker_id_map[f"{a_lat},{a_lon}"] = {"id": str(att_id), "collection": "attractions"}
-                        
-                        # Costruiamo il blocco HTML avanzato per l'HOVER (Tooltip)
+
                         tooltip_html = f"""
                         <div style="font-family: sans-serif; font-size: 0.9rem; padding: 4px; min-width: 160px;">
                             <strong style="color: #10b981;">🏛️ {att_name}</strong><br>
@@ -169,28 +145,25 @@ with col_map:
                             </span>
                         </div>
                         """
-                        
+
                         folium.Marker(
                             location=[a_lat, a_lon],
-                            tooltip=folium.Tooltip(tooltip_html, permanent=False), # permanent=False lo rende visibile solo in hover
+                            tooltip=folium.Tooltip(tooltip_html, permanent=False),
                             icon=folium.Icon(color="green", icon="landmark")
                         ).add_to(m)
-                        
+
                         folium.PolyLine(
                             locations=[[center_lat, center_lon], [a_lat, a_lon]],
                             color="#10b981", weight=2.5, opacity=0.8
                         ).add_to(m)
 
-        # =====================================================================
-        # CASO B: ATTRAZIONE (Prende lat/lon degli hub direttamente dal backend)
-        # =====================================================================
         else:
             folium.Marker(
                 location=[center_lat, center_lon],
                 popup=f"<b>{name}</b><br>(Attrazione Corrente)",
                 icon=folium.Icon(color="green", icon="landmark")
             ).add_to(m)
-            
+
             if isinstance(graph_data, list):
                 for hub in graph_data:
                     acc_id = hub.get("accommodation_id")
@@ -198,13 +171,12 @@ with col_map:
                     a_lat = hub.get("latitude")
                     a_lon = hub.get("longitude")
                     alt_attractions = hub.get("alternative_attractions", [])
-                    
+
                     if a_lat and a_lon and acc_id:
                         marker_id_map[f"{a_lat},{a_lon}"] = {"id": str(acc_id), "collection": "accommodations"}
-                        
-                        # Genera la sotto-lista delle altre attrazioni vicine per arricchire l'hover
+
                         html_list = "".join([f"<li>{alt['name']} ({alt['distance_km']:.1f} km)</li>" for alt in alt_attractions[:3]])
-                        
+
                         tooltip_html = f"""
                         <div style="font-family: sans-serif; font-size: 0.9rem; padding: 4px; min-width: 200px;">
                             <strong style="color: #ef4444;">🏨 {acc_name}</strong><br>
@@ -213,25 +185,24 @@ with col_map:
                             <span style="color: #94a3b8; font-size: 0.75rem;">👆 <i>Clicca per aprire la scheda alloggio</i></span>
                         </div>
                         """
-                        
+
                         folium.Marker(
                             location=[a_lat, a_lon],
                             tooltip=folium.Tooltip(tooltip_html, permanent=False),
                             icon=folium.Icon(color="red", icon="home")
                         ).add_to(m)
-                        
+
                         folium.PolyLine(
                             locations=[[center_lat, center_lon], [a_lat, a_lon]],
                             color="#ef4444", weight=2.5, opacity=0.8
                         ).add_to(m)
 
-        # Rendering e intercettazione del click nativo di Streamlit
         map_output = st_folium(m, width=700, height=430, returned_objects=["last_object_clicked"])
-        
+
         if map_output and map_output.get("last_object_clicked"):
             click_coords = map_output["last_object_clicked"]
             c_lat, c_lng = click_coords.get("lat"), click_coords.get("lng")
-            
+
             if c_lat and c_lng:
                 matched_target = None
                 for coords_key, target_info in marker_id_map.items():
@@ -239,30 +210,27 @@ with col_map:
                     if abs(lat_k - c_lat) < 0.0001 and abs(lon_k - c_lng) < 0.0001:
                         matched_target = target_info
                         break
-                
+
                 if matched_target:
                     new_doc = get_details(matched_target["collection"], matched_target["id"])
                     if new_doc:
                         st.session_state["selected_item"] = new_doc
                         st.session_state["selected_collection"] = matched_target["collection"]
-                        st.slots = {}  
+                        st.slots = {}
                         st.rerun()
     else:
         st.info("ℹ️ Coordinate geografiche non disponibili per l'elemento corrente.")
 
-# ==========================================
-# GESTIONE RIGIDA DELL'IMMAGINE SINGOLA
-# ==========================================
 img_field = source.get("image") or source.get("image_url")
 
 if img_field and str(img_field).strip() and str(img_field) != "N/D" and "placeholder" not in str(img_field):
     if not str(img_field).startswith(("http://", "https://")):
-        img_url_to_render = f"{BACKEND_URL}/static/images/{collection}/{img_field}"
+        img_url_to_render = f"{BASE_URL}/static/images/{collection}/{img_field}"
     else:
         img_url_to_render = img_field
 
     st.markdown("<div style='margin-top:2rem'></div>", unsafe_allow_html=True)
-    _, col_img_center, _ = st.columns([1.2, 1.6, 1.2])  
+    _, col_img_center, _ = st.columns([1.2, 1.6, 1.2])
     with col_img_center:
         st.image(img_url_to_render, use_container_width=True, caption=f"{name}", output_format="auto")
 

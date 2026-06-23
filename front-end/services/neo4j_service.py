@@ -1,37 +1,14 @@
-"""
-Neo4j service — ricerca luoghi vicini via back-end FastAPI (stub).
-Sostituisce lo stub locale. Ritornerà dati reali quando Neo4j sarà attivo.
-"""
+import streamlit as st
 from services.api_client import get
 
 
-def is_available() -> bool:
-    """Ritorna True quando Neo4j è connesso e pronto."""
+@st.cache_data(ttl=60, show_spinner="Interrogazione relazioni geospaziali...")
+def fetch_graph_relations(collection_type: str, document_id: str):
     try:
-        data = get("/nearby/health")
-        return data.get("available", False)
+        if collection_type == "accommodations":
+            data = get(f"/geo/accommodations/{document_id}/nearby-attractions")
+            return data.get("nearby_attractions", [])
+        data = get(f"/geo/attractions/{document_id}/cluster-analysis")
+        return data.get("accommodation_hubs", [])
     except Exception:
-        return False
-
-
-def find_nearby(
-    doc_id: str,
-    source_type: str,   # 'attraction' | 'accommodation'
-    target_type: str,   # 'attraction' | 'accommodation'
-    radius_km: float = 5.0,
-    limit: int = 10,
-) -> list[dict]:
-    """
-    Ritorna i POI vicini entro radius_km.
-    STUB: ritorna sempre lista vuota finché Neo4j non è attivo.
-    """
-    try:
-        data = get(f"/nearby/{doc_id}", params={
-            "source_type": source_type,
-            "target_type": target_type,
-            "radius_km": radius_km,
-            "limit": limit,
-        })
-        return data.get("results", [])
-    except Exception:
-        return []
+        return "__TIMEOUT_OR_ERROR__"
