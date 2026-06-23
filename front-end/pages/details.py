@@ -64,19 +64,6 @@ with col_info:
         if desc:
             st.markdown("**Descrizione:**")
             st.markdown(f"<div class='result-desc' style='font-size:1rem; max-height:none;'>{desc}</div>", unsafe_allow_html=True)
-
-        extra = source.get("extra_info")
-        if extra and isinstance(extra, dict):
-            labels = {
-                "scope": "Ambito", "subcategory": "Sottocategoria",
-                "cod": "Codice", "area_mq": "Area (m²)", "emergency": "Bene a rischio",
-            }
-            st.markdown("<div style='margin-top:1rem'></div>", unsafe_allow_html=True)
-            with st.expander("📊 Dati Tecnici Aggiuntivi"):
-                for k, v in extra.items():
-                    if isinstance(v, bool):
-                        v = "Sì" if v else "No"
-                    st.markdown(f"**{labels.get(k, k.replace('_', ' ').title())}:** {v}")
     else:
         st.markdown(f"### 🏨 Dettagli Struttura Ricettiva")
         stars = source.get("stars")
