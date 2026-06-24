@@ -1,6 +1,6 @@
 import streamlit as st
 from services.mongo_service import add_review
-
+from components.utils import smart_form_submit_button
 
 def render_reviews(reviews: list[dict]) -> None:
     if not reviews:
@@ -39,7 +39,7 @@ def render_add_review_form(collection: str, doc_id: str, username: str) -> None:
             placeholder="Scrivi qui la tua esperienza...",
             max_chars=500,
         )
-        submitted = st.form_submit_button("Invia recensione", use_container_width=True, type="primary")
+        submitted = smart_form_submit_button("Invia recensione", type="primary")
 
     if submitted:
         if not text.strip():

@@ -1,7 +1,9 @@
-# Piemonte Tourism
+# Turismo Piemonte
 
-A platform for searching and managing **tourist attractions** and **accommodation facilities** in Piedmont, Italy.  
-The system integrates a real-time data pipeline (**MongoDB → Kafka → Elasticsearch**) with a web interface for tourists and managers.
+A platform for searching and managing tourist attractions and accommodation facilities in Piedmont, Italy.
+The system integrates a real-time data pipeline (**MongoDB → Kafka → Elasticsearch + Neo4j**) with a web interface for tourists and managers.
+
+> The application content (descriptions, place names, reviews) is in Italian, sourced from open data provided by [Dati Piemonte](https://www.datipiemonte.it/).
 
 ---
 
@@ -9,8 +11,8 @@ The system integrates a real-time data pipeline (**MongoDB → Kafka → Elastic
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                            Users                                     │
-│               Tourist              Manager                           │
+│                            Users                                    │
+│               Tourist              Manager                          │
 └────────────┬───────────────────────┬────────────────────────────────┘
              │                       │
              ▼                       ▼
@@ -22,31 +24,44 @@ The system integrates a real-time data pipeline (**MongoDB → Kafka → Elastic
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                Back-end — FastAPI  (port 8000)                      │
-│   /auth · /search · /details · /reviews · /dashboard               │
-└────────┬─────────────────────────────────────┬───────────────────────┘
-         │                                     │
-         ▼                                     ▼
-┌─────────────────┐             ┌──────────────────────────┐
-│  MongoDB 7.0    │             │  Elasticsearch 8.15      │
-│  (port 27017)   │             │  (port 9200)             │
-│  Replica Set    │             │  indices: attractions    │
-│  tourism-mongo  │             │           accommodations  │
-└────────┬────────┘             └──────────────────────────┘
-         │ Change Data Capture (CDC)              ▲
-         │                                        │
-         ▼                                        │
-┌─────────────────┐      ┌──────────────────┐     │
-│  Kafka 3.7      │─────▶│  Kafka Connect   │─────┘
-│  (port 9092)    │      │  + Debezium      │  Python Processor
-│  KRaft mode     │      │  (port 8083)     │  (pipeline/processor.py)
-└─────────────────┘      └──────────────────┘
+│   /auth · /search · /details · /reviews · /dashboard                │
+└────────┬──────────────────────────────────────────┬─────────────────┘
+         │                                          │
+         ▼                                          ▼
+┌─────────────────┐              ┌───────────────────────────────────┐
+│  MongoDB 7.0    │              │  Elasticsearch 8.15               │
+│  (port 27017)   │              │  (port 9200)                      │
+│  Replica Set    │              │  indices: attractions             │
+│  Single source  │              │           accommodations          │
+│  of truth       │              └───────────────────────────────────┘
+└────────┬────────┘              ┌───────────────────────────────────┐
+         │                       │  Neo4j 5.20                       │
+         │                       │  (port 7687)                      │
+         │                       │  Geospatial proximity graph       │
+         │  Change Data Capture  └───────────────────────────────────┘
+         │  (Debezium)                          ▲
+         ▼                                      │ 
+┌─────────────────┐      ┌──────────────────┐   │ 
+│  Kafka 3.7      │─────>│  Kafka Connect   │   │ 
+│  (port 9092)    │      │  (port 8083)     │   │ 
+│  KRaft mode     │      └──────────────────┘   │ 
+└─────────────────┘                             │ 
+         │                                      │ 
+         │        ┌───────────────────────────┐ │ 
+         └───────>│  Python Processors        │─┘ 
+                  │  processor_elk.py         |
+                  │  processor_neo4j.py       |
+                  └───────────────────────────┘
 ```
 
 ### Data Flow
-1. Attraction and accommodation data is inserted into **MongoDB** (via seeders or scripts).
-2. **Debezium** (Kafka Connect) captures every database change via CDC and publishes it to Kafka topics.
-3. The **Python processor** (`pipeline/processor.py`) consumes Kafka messages and indexes them into **Elasticsearch**.
-4. The **FastAPI back-end** exposes REST APIs that query Elasticsearch (full-text search) and MongoDB (field values, reviews, details, dashboard).
+
+1. Attraction and accommodation data is inserted into **MongoDB** (via seeders or the application itself). MongoDB is the **single source of truth**.
+2. **Debezium** (Kafka Connect) captures every change via CDC and publishes it to Kafka topics.
+3. Two independent **Python processors** consume Kafka messages in parallel:
+   - `processor_elk.py` indexes documents into **Elasticsearch** for full-text search.
+   - `processor_neo4j.py` maintains a **Neo4j** proximity graph linking nearby attractions and accommodations.
+4. The **FastAPI back-end** exposes REST APIs that query Elasticsearch (full-text search) and MongoDB (details, reviews, dashboard).
 5. The **Streamlit front-end** allows tourists and managers to interact with the system.
 
 ---
@@ -54,7 +69,7 @@ The system integrates a real-time data pipeline (**MongoDB → Kafka → Elastic
 ## Prerequisites
 
 - **Docker Desktop** >= 24.0 and **Docker Compose** >= 2.20
-- **Python** >= 3.11 (to run the back-end, front-end, and scripts locally)
+- **Python** >= 3.11
 - **pip** >= 23.0
 
 ---
@@ -71,7 +86,7 @@ cd ADMM_PROJECT
 Create a `.env` file inside `back-end/` using the provided example:
 
 ```bash
-copy back-end\env_example back-end\.env
+cp back-end/env_example back-end/.env
 ```
 
 Edit `back-end/.env` with your values:
@@ -79,33 +94,31 @@ Edit `back-end/.env` with your values:
 ```env
 MONGO_URI=mongodb://localhost:27017/?directConnection=true
 MONGO_DB_NAME=Tourism
-
 ELASTICSEARCH_URL=http://localhost:9200
-ES_USER=elastic
-ES_PASSWORD=changeme
-
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_CONNECT_URL=http://localhost:8083
-
 PIEDMONT_REG_CODE=1
 GEO_EPSG_CRS=epsg:4326
-
 CORS_ALLOWED_ORIGINS=*
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=adminneo4j
+NEO4J_MAX_DISTANCE_METERS=3000
 ```
 
-For the front-end, create a `.env` inside `front-end/` (only `BACKEND_URL` is needed):
+For the front-end, create a `.env` inside `front-end/`:
 
 ```env
 BACKEND_URL=http://localhost:8000
 ```
 
-### 2. Start the infrastructure with Docker Compose
+### 2. Start the infrastructure
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This will start:
+This starts:
 
 | Service | Container | Port |
 |---------|-----------|------|
@@ -113,51 +126,85 @@ This will start:
 | Kafka 3.7 (KRaft) | `tourism-kafka` | `9092` |
 | Kafka Connect + Debezium | `tourism-connect` | `8083` |
 | Elasticsearch 8.15 | `tourism-elasticsearch` | `9200` |
+| Neo4j 5.20 | `tourism-neo4j` | `7474` / `7687` |
 
 ### 3. Install Python dependencies
 
 ```bash
-# Back-end dependencies
 pip install -r back-end/requirements.txt
-
-# Front-end dependencies
 pip install -r front-end/requirements.txt
 ```
 
-### 4. Initialize the pipeline and load data
+### 4. Seed MongoDB and start the pipeline
+
+> This step is only needed on first run. Open **three terminals**.
+
+**Terminal 1 - back-end directory:** initialize the pipeline and start the processors.
 
 ```bash
-# From the back-end directory:
-# Creates Elasticsearch indices, resets Kafka if needed, and starts the Debezium connector
 cd back-end
-python startup.py
+python -m startup --fresh
+```
 
-# In another terminal from the back-end directory — populate MongoDB with initial data
+This creates the Elasticsearch indices, registers the Debezium connector, and starts both `processor_elk` and `processor_neo4j` as background processes. On first run, Debezium will perform an **initial snapshot** of MongoDB and replicate everything to Elasticsearch and Neo4j automatically.
+It also ensures that a manger account is present, with username `admin` and passowrd `admin`.
+
+**Terminal 2 - back-end directory:** populate MongoDB with initial data.
+
+```bash
 cd back-end
 python -m seeders.seed_attractions
 python -m seeders.seed_accommodations
 ```
 
-> **Note:** use `python startup.py --fresh` to wipe and recreate existing Elasticsearch indices.
+The seeders read from the provided CSV files and insert data into MongoDB. From there, the pipeline picks up the changes automatically and propagates them to Elasticsearch and Neo4j.
 
-### 5. Start the FastAPI back-end
+> **Important:** the seeders drop and recreate the MongoDB collections on each run. Only use them during initial setup or when you want to fully reload the source data. After the first run, MongoDB is the source of truth - do not re-run the seeders unless you intend a full reset.
 
+### 5. Start the Application
+
+**Terminal 2 - back-end directory:** 
 ```bash
-# From the back-end directory
-python -m uvicorn app.main:app --reload --port 8000
+cd back-end
+python -m uvicorn app.main:app --port 8000
 ```
 
-The back-end will be available at `http://localhost:8000`.  
-Interactive Swagger documentation: `http://localhost:8000/docs`
 
-### 6. Start the Streamlit front-end
-
+**Terminal 3 - front-end directory:**
 ```bash
 cd front-end
 python -m streamlit run app.py
 ```
 
-The front-end will be available at `http://localhost:8501`.
+---
+
+## Subsequent runs
+
+On subsequent runs, the pipeline resumes from where it left off. Just:
+
+```bash
+docker compose up -d
+cd back-end && python -m startup
+cd back-end && python -m uvicorn app.main:app --port 8000
+cd front-end && python -m streamlit run app.py
+```
+
+---
+
+## Full reset
+
+Use this when you want to wipe everything and start from scratch.
+
+```bash
+docker compose down -v        # removes all volumes
+docker compose up -d
+cd back-end
+python -m startup --fresh     # wipes Elasticsearch indices and Neo4j graph, re-registers Debezium
+python -m seeders.seed_attractions
+python -m seeders.seed_accommodations
+```
+
+`--fresh` destroys the Kafka topics and consumer group offsets, the Elasticsearch indices, and the Neo4j graph, then recreates them clean. Since Kafka state is gone, Debezium will perform a new full snapshot of MongoDB.
 
 ---
 
@@ -168,29 +215,33 @@ The front-end will be available at `http://localhost:8501`.
 | `GET` | `/health` | Server health check |
 | `POST` | `/auth/login` | User login |
 | `POST` | `/auth/register` | User registration (tourist role only) |
-| `GET` | `/search/attractions` | Search attractions (full-text + filters) |
-| `GET` | `/search/accommodations` | Search accommodations (full-text + filters) |
+| `GET` | `/search/attractions` | Full-text search on attractions |
+| `GET` | `/search/accommodations` | Full-text search on accommodations |
 | `GET` | `/search/field-values` | Unique field values from MongoDB (for filters) |
 | `GET` | `/search/count` | Count documents in an Elasticsearch index |
-| `GET` | `/details/{collection}/{id}` | Single item detail |
-| `GET` | `/reviews/{collection}/{doc_id}` | Retrieve reviews |
+| `GET` | `/details/{collection}/{id}` | Single document detail with image URL |
+| `GET` | `/reviews/{collection}/{doc_id}` | Retrieve last 3 reviews |
 | `POST` | `/reviews/{collection}/{doc_id}` | Add a review |
 | `GET` | `/dashboard/raw-data` | Raw analytics data for the manager dashboard |
+| `GET` | `/geo/accommodations/{id}/nearby-attractions` | Nearby attractions from Neo4j graph |
+| `GET` | `/geo/attractions/{id}/cluster-analysis` | Accommodation hubs around an attraction |
+
+Interactive Swagger docs available at `http://localhost:8000/docs`.
 
 ### Main search parameters
 
 **Attractions** (`/search/attractions`):
-- `text` — full-text search on name, category, description, municipality
-- `provinces` — filter by province (e.g. `TO`, `CN`)
-- `categories` — filter by category
-- `limit` — maximum number of results (default: 100, max: 1000)
+- `text` - full-text search on name, category, description, municipality
+- `provinces` - filter by province (e.g. `TO`, `CN`)
+- `categories` - filter by category
+- `limit` - max results (default: 100, max: 1000)
 
 **Accommodations** (`/search/accommodations`):
-- `text` — full-text search on name, structure type, municipality
-- `provinces` — filter by province
-- `structure_types` — filter by structure type
-- `stars_min` / `stars_max` — star rating range (1–5)
-- `limit` — maximum number of results
+- `text` - full-text search on name, structure type, municipality
+- `provinces` - filter by province
+- `structure_types` - filter by structure type
+- `stars_min` / `stars_max` - star rating range (1–5)
+- `limit` - max results
 
 ---
 
@@ -201,19 +252,9 @@ The front-end will be available at `http://localhost:8501`.
 | **tourist** | Search attractions and accommodations, view details, add reviews |
 | **manager** | Analytics dashboard with interactive map, KPIs, statistical charts |
 
-> **Note:** new accounts registered via the front-end are created with the `tourist` role. Manager accounts must be created manually using `back-end/scripts/manage_manager.py`.
-
----
-
-
-### Full data reset
+New accounts registered via the front-end are created with the `tourist` role. Manager accounts must be created manually:
 
 ```bash
-docker-compose down -v    # also removes volumes
-docker-compose up -d
 cd back-end
-python startup.py --fresh
-cd ..
-python -m seeders.seed_attractions
-python -m seeders.seed_accommodations
+python -m scripts.manage_manager
 ```

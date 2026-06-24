@@ -33,7 +33,7 @@ def process_reviews(raw_reviews) -> list[str]:
 
 
 def main():
-    print("[ELK PROCESSOR] Starting independent full-text indexing consumer...")
+    print("[ELK PROCESSOR] Starting full-text indexing consumer...")
 
     consumer = KafkaConsumer(
         "Tourism.Tourism.accommodations",

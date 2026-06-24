@@ -1,9 +1,9 @@
 import streamlit as st
-from components.utils import load_css
+from components.utils import load_css, smart_form_submit_button
 from services import auth
 
 st.set_page_config(
-    page_title="Piemonte Turismo - Login",
+    page_title="Turismo Piemonte - Login",
     page_icon="P",
     layout="centered",
 )
@@ -16,7 +16,7 @@ if st.session_state.get("user"):
 st.markdown(
     """
     <div class="hero-section">
-      <p class="hero-title">Piemonte Tourism</p>
+      <p class="hero-title">Turismo Piemonte</p>
       <p class="hero-sub">Esplora attrazioni e alloggi del Piemonte</p>
     </div>
     """,
@@ -32,7 +32,7 @@ with tab_login:
     with st.form("form_login", clear_on_submit=False):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Accedi", use_container_width=True, type="primary")
+        login_btn = smart_form_submit_button("Accedi", type="primary")
 
     if login_btn:
         if not username.strip() or not password:
@@ -52,7 +52,7 @@ with tab_reg:
         new_email = st.text_input("Email (opzionale)")
         new_pw = st.text_input("Password", type="password")
         new_pw2 = st.text_input("Conferma password", type="password")
-        reg_btn = st.form_submit_button("Crea account", use_container_width=True, type="primary")
+        reg_btn = smart_form_submit_button("Crea account", type="primary")
 
     if reg_btn:
         if not new_user.strip() or not new_pw:

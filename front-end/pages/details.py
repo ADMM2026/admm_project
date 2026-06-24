@@ -1,7 +1,7 @@
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
-from components.utils import load_css, require_login
+from components.utils import load_css, require_login, smart_button, smart_image
 from components.reviews import render_reviews, render_add_review_form
 from services.mongo_service import get_details
 from services.neo4j_service import fetch_graph_relations
@@ -31,10 +31,10 @@ source = doc if doc else item
 
 col_back, col_space, col_logout = st.columns([1.5, 4, 1])
 with col_back:
-    if st.button("⬅️ Torna alla ricerca", use_container_width=True):
+    if smart_button("⬅️ Torna alla ricerca"):
         st.switch_page("pages/search.py")
 with col_logout:
-    if st.button("Esci", use_container_width=True, type="secondary"):
+    if smart_button("Esci", type="secondary"):
         st.session_state.clear()
         st.switch_page("app.py")
 
@@ -219,7 +219,7 @@ if img_field and str(img_field).strip() and str(img_field) != "N/D" and "placeho
     st.markdown("<div style='margin-top:2rem'></div>", unsafe_allow_html=True)
     _, col_img_center, _ = st.columns([1.2, 1.6, 1.2])
     with col_img_center:
-        st.image(img_url_to_render, use_container_width=True, caption=f"{name}", output_format="auto")
+        smart_image(img_url_to_render, caption=f"{name}", output_format="auto")
 
 st.divider()
 st.subheader("💬 Recensioni degli Utenti")

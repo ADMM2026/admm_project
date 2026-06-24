@@ -1,6 +1,29 @@
 import streamlit as st
 from pathlib import Path
+import sys
+import streamlit as st
+from typing import Any, Dict
 
+_ST_WIDTH_ARGS: Dict[str, Any] = (
+    {"width": "stretch"} if sys.platform == "win32" 
+    else {"use_container_width": True}
+)
+
+def smart_button(label: str, **kwargs) -> bool:
+    full_kwargs = {**_ST_WIDTH_ARGS, **kwargs}
+    return st.button(label, **full_kwargs)
+
+def smart_form_submit_button(label: str, **kwargs) -> bool:
+    full_kwargs = {**_ST_WIDTH_ARGS, **kwargs}
+    return st.form_submit_button(label, **full_kwargs)
+
+def smart_plotly_chart(figure, **kwargs):
+    full_kwargs = {**_ST_WIDTH_ARGS, **kwargs}
+    return st.plotly_chart(figure, **full_kwargs)
+
+def smart_image(image, **kwargs):
+    full_kwargs = {**_ST_WIDTH_ARGS, **kwargs}
+    return st.image(image, **full_kwargs)
 
 def load_css() -> None:
     css_path = Path(__file__).parent.parent / "style.css"

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from components.utils import load_css, require_login
+from components.utils import load_css, require_login, smart_button
 from components.cards import render_attraction_card, render_accommodation_card
 from components.filters import attraction_filters, accommodation_filters
 from services.es_service import search_attractions, search_accommodations, count_index
@@ -21,7 +21,7 @@ with col_title:
     st.caption(f"Loggato come **{user['username']}**")
 with col_logout:
     st.write("")
-    if st.button("Esci", use_container_width=True):
+    if smart_button("Esci"):
         st.session_state.clear()
         st.switch_page("app.py")
 
@@ -127,16 +127,13 @@ if hits:
         st.markdown("<p class='map-title'>Mappa dei Risultati</p>", unsafe_allow_html=True)
         geo = extract_geo(hits)
         
-        # Latitudine e Longitudine medie per centrare la mappa in base ai risultati
         if geo:
             df_geo = pd.DataFrame(geo)
             center_lat = df_geo["lat"].mean()
             center_lon = df_geo["lon"].mean()
             
-            # Creiamo la mappa Folium coerente con la pagina details
             m_search = folium.Map(location=[center_lat, center_lon], zoom_start=9, control_scale=True)
             
-            # Colore coerente: Verde per attrazioni, Rosso per alloggi
             marker_color = "green" if active_index == "attractions" else "red"
             marker_icon = "landmark" if active_index == "attractions" else "home"
             
@@ -144,7 +141,6 @@ if hits:
                 coords = item.get("coordinates")
                 item_name = item.get("name", "Risultato")
                 
-                # Parsing sicuro delle coordinate del singolo hit
                 lat, lon = None, None
                 if isinstance(coords, list) and len(coords) == 2:
                     lon, lat = float(coords[0]), float(coords[1])
@@ -159,10 +155,8 @@ if hits:
                         icon=folium.Icon(color=marker_color, icon=marker_icon)
                     ).add_to(m_search)
             
-            # Visualizzazione mappa senza intercettare click (solo overview)
             st_folium(m_search, width=700, height=500, key="search_global_map", returned_objects=[])
         else:
-            # Fallback Piemonte se i risultati non hanno coordinate valide
             m_fallback = folium.Map(location=[45.07, 7.68], zoom_start=8)
             st_folium(m_fallback, width=700, height=500, key="search_fallback_map", returned_objects=[])
     with col_cards:
@@ -183,7 +177,7 @@ if hits:
         
         if limit < total:
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-            if st.button("Mostra altri risultati ⬇️", use_container_width=True):
+            if smart_button("Mostra altri risultati ⬇️"):
                 st.session_state["result_limit"] += 10
                 st.rerun()
 

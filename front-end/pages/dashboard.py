@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
-from components.utils import load_css, require_login
+from components.utils import load_css, require_login, smart_button, smart_plotly_chart
 from components.filters import dashboard_manager_filters  
 from services.mongo_service import get_raw_data
 
@@ -76,13 +76,12 @@ with col_title:
     st.caption(f"Operatore loggato: **{user['username']}** — Monitoraggio delle risorse e dei flussi sul territorio")
 with col_logout:
     st.write("")
-    if st.button("Esci", use_container_width=True, type="secondary"):
+    if smart_button("Esci", type="secondary"):
         st.session_state.clear()
         st.switch_page("app.py")
 
 st.markdown("---")
 
-# Sezione KPI Metrics Cards
 k1, k2, k3, k4 = st.columns(4)
 total_rooms = int(df_acc_filtered["rooms"].sum()) if not df_acc_filtered.empty else 0
 total_beds = int(df_acc_filtered["beds"].sum()) if not df_acc_filtered.empty else 0
@@ -116,8 +115,7 @@ for col, (label, value, color) in zip([k1, k2, k3, k4], kpis):
 
 st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
-# Mappa Scatter Mapbox Georeferenziata
-st.subheader("🗺️ Mappa di Densità e Georeferenziazione Territoriale")
+st.subheader("🗺️ Mappa di Densità Territoriale")
 if "lon" in df_total_map.columns and "lat" in df_total_map.columns:
     df_total_map = df_total_map.dropna(subset=["lon", "lat"])
 
@@ -149,13 +147,12 @@ if not df_total_map.empty:
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
         legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01, bgcolor="rgba(15,23,42,0.8)")
     )
-    st.plotly_chart(fig_map, use_container_width=True)
+    smart_plotly_chart(fig_map)
 else:
     st.warning("⚠️ Nessuna risorsa georeferenziata soddisfa i criteri dei filtri correnti.")
 
 st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
-# Sezione Grafici Plotly Sottostanti
 left_chart_col, right_chart_col = st.columns(2)
 
 with left_chart_col:
@@ -174,11 +171,10 @@ with left_chart_col:
             height=360
         )
         
-        # AGGIUNTA: Forza l'ordine decrescente dall'alto verso il basso
         fig_acc.update_yaxes(categoryorder="total ascending")
         
         fig_acc.update_layout(margin={"t": 20, "b": 20})
-        st.plotly_chart(fig_acc, use_container_width=True)
+        smart_plotly_chart(fig_acc)
     else:
         st.info("Nessun alloggio disponibile per i filtri correnti.")
 
@@ -197,7 +193,7 @@ with right_chart_col:
             height=360
         )
         fig_beds.update_layout(margin={"t": 20, "b": 20})
-        st.plotly_chart(fig_beds, use_container_width=True)
+        smart_plotly_chart(fig_beds)
     else:
         st.info("Dati di capacità (posti letto) non disponibili per la selezione corrente.")
 
@@ -216,19 +212,18 @@ with left_chart_col_2:
             y="Categoria", 
             orientation='h',
             template="plotly_dark", 
-            color_discrete_sequence=["#34d399"], # Colore verde richiesto per le attrazioni
+            color_discrete_sequence=["#34d399"], 
             height=360
         )
         fig_att.update_yaxes(categoryorder="total ascending")
         fig_att.update_layout(margin={"t": 20, "b": 20})
-        st.plotly_chart(fig_att, use_container_width=True)
+        smart_plotly_chart(fig_att)
     else:
         st.info("Nessuna attrazione disponibile per i filtri correnti.")
 
 with right_chart_col_2:
     st.subheader("⭐ Distribuzione Recensioni e Gradimento Attrazioni")
     
-    # Estrazione di tutti i singoli score delle recensioni delle attrazioni
     att_ratings = []
     if not df_att_filtered.empty and "ratings" in df_att_filtered.columns:
         for r_list in df_att_filtered["ratings"].dropna():
@@ -236,7 +231,6 @@ with right_chart_col_2:
                 att_ratings.extend(r_list)
 
     if att_ratings:
-        # Calcolo distribuzione frequenze (da 1 a 5 stelle)
         counts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
         for r in att_ratings:
             try:
@@ -249,7 +243,6 @@ with right_chart_col_2:
         total_reviews = len(att_ratings)
         avg_rating = np.mean(att_ratings)
         
-        # Sub-layout interno per dividere le barre di progressione dai dati aggregati a destra
         sub_col_bars, sub_col_metrics = st.columns([1.7, 1])
         
         with sub_col_bars:
@@ -258,7 +251,6 @@ with right_chart_col_2:
                 count = counts[star]
                 percentage = int(np.round(count / total_reviews * 100)) if total_reviews > 0 else 0
                 
-                # RISOLUZIONE: Concatenazione lineare senza ritorni a capo (\n) né spazi vuoti di tabulazione
                 bars_html += (
                     f'<div style="display: flex; align-items: center; margin-bottom: 10px;">'
                     f'<div style="width: 15px; font-size: 1.1rem; color: #94a3b8; text-align: right; margin-right: 15px; font-weight: 500;">{star}</div>'
@@ -270,11 +262,9 @@ with right_chart_col_2:
             st.markdown(f'<div style="padding-top: 20px;">{bars_html}</div>', unsafe_allow_html=True)
             
         with sub_col_metrics:
-            # Formattazione coerente con l'immagine (Virgola per decimali, Punto per le migliaia)
             formatted_avg = f"{avg_rating:.1f}".replace('.', ',')
             formatted_total = f"{total_reviews:,}".replace(',', '.')
             
-            # Generazione stelle piene/vuote/mezza stella proporzionale
             rounded_rating = int(np.round(avg_rating))
             stars_symbols = "★" * rounded_rating + "☆" * (5 - rounded_rating)
 

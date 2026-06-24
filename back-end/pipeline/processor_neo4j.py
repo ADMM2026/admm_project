@@ -81,7 +81,7 @@ def delete_from_neo4j(label, doc_id):
 
 
 def main():
-    print("[NEO4J PROCESSOR] Starting independent geospatial graph consumer...")
+    print("[NEO4J PROCESSOR] Starting geospatial graph consumer...")
 
     consumer = KafkaConsumer(
         "Tourism.Tourism.accommodations",

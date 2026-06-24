@@ -1,5 +1,5 @@
 import streamlit as st
-
+from components.utils import smart_button
 
 def _location_str(item: dict) -> str:
     loc = item.get("location", {})
@@ -33,7 +33,7 @@ def render_attraction_card(item: dict, idx: int) -> bool:
         """,
         unsafe_allow_html=True,
     )
-    return st.button("Vedi dettagli", key=f"det_att_{idx}", use_container_width=True)
+    return smart_button("Vedi dettagli", key=f"det_att_{idx}")
 
 
 def render_accommodation_card(item: dict, idx: int) -> bool:
@@ -58,4 +58,4 @@ def render_accommodation_card(item: dict, idx: int) -> bool:
         """,
         unsafe_allow_html=True,
     )
-    return st.button("Vedi dettagli", key=f"det_acc_{idx}", use_container_width=True)
+    return smart_button("Vedi dettagli", key=f"det_acc_{idx}")
