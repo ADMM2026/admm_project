@@ -165,7 +165,6 @@ The seeders read from the provided CSV files and insert data into MongoDB. From 
 
 **Terminal 2 - back-end directory:** 
 ```bash
-cd back-end
 python -m uvicorn app.main:app --port 8000
 ```
 
