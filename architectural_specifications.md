@@ -234,7 +234,7 @@ Mapping Attractions
 
 #### Nodes and Edges structure:
 Node Accommodation
-```json
+```
 (:Accomodation{
     id: "acc_12345", 
     name: "Hotel Piemonte",
@@ -243,7 +243,7 @@ Node Accommodation
 ```
 
 Node Attraction
-```json
+```
 (:Attraction{
     id: "att_67890",
     name: "Museo Egizio",
@@ -254,7 +254,7 @@ Node Attraction
 
 
 Relation Accomodation, Attraction
-```json
+```
 (:Accomodation)-[:NEAR_TO {distance_km : 0.27}]-(:Attraction)
 
 ```
