@@ -137,6 +137,8 @@ if hits:
             marker_color = "green" if active_index == "attractions" else "red"
             marker_icon = "landmark" if active_index == "attractions" else "home"
             
+            marker_id_map = {}
+            
             for item in hits:
                 coords = item.get("coordinates")
                 item_name = item.get("name", "Risultato")
@@ -154,8 +156,29 @@ if hits:
                         tooltip=item_name,
                         icon=folium.Icon(color=marker_color, icon=marker_icon)
                     ).add_to(m_search)
+                    
+                    coords_key = f"{float(lat)},{float(lon)}"
+                    marker_id_map[coords_key] = item
             
-            st_folium(m_search, width=700, height=500, key="search_global_map", returned_objects=[])
+            map_output = st_folium(m_search, width=700, height=500, key="search_global_map")
+            
+            if map_output and map_output.get("last_object_clicked"):
+                click_coords = map_output["last_object_clicked"]
+                c_lat, c_lng = click_coords.get("lat"), click_coords.get("lng")
+                
+                if c_lat and c_lng:
+                    matched_item = None
+                    for coords_key, item_data in marker_id_map.items():
+                        lat_k, lon_k = map(float, coords_key.split(","))
+                        if abs(lat_k - c_lat) < 0.0001 and abs(lon_k - c_lng) < 0.0001:
+                            matched_item = item_data
+                            break
+                    
+                    if matched_item:
+                        st.session_state["selected_item"] = matched_item
+                        st.session_state["selected_collection"] = active_index
+                        st.switch_page("pages/details.py")
+                        
         else:
             m_fallback = folium.Map(location=[45.07, 7.68], zoom_start=8)
             st_folium(m_fallback, width=700, height=500, key="search_fallback_map", returned_objects=[])

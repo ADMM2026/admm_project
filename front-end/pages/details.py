@@ -94,7 +94,7 @@ with col_map:
 
     if coords and len(coords) == 2:
         center_lat, center_lon = float(coords[1]), float(coords[0])
-        st.markdown("<p class='map-title' style='margin-bottom:0.3rem; font-weight:600;'>Mappa Geospaziale delle Relazioni</p>", unsafe_allow_html=True)
+        st.markdown("<p class='map-title' style='margin-bottom:0.3rem; font-weight:600;'>Mappa e luoghi di interesse vicini</p>", unsafe_allow_html=True)
 
         m = folium.Map(location=[center_lat, center_lon], zoom_start=13, control_scale=True)
         graph_data = fetch_graph_relations(collection, doc_id) if doc_id else None
