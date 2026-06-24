@@ -29,16 +29,10 @@ def login(body: LoginRequest):
     db = get_mongo()
     user = db["users"].find_one({"username": body.username})
     
-    if not user:
+    if not user or not bcrypt.checkpw(body.password.encode("utf-8"), user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Username non trovato."
-        )
-        
-    if not bcrypt.checkpw(body.password.encode("utf-8"), user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Password errata."
+            detail="Credenziali errate."
         )
         
     return UserResponse(
