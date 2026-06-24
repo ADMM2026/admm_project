@@ -122,7 +122,7 @@ if "lon" in df_total_map.columns and "lat" in df_total_map.columns:
 if not df_total_map.empty:
     df_total_map["size_marker"] = df_total_map["beds"].apply(lambda x: min(int(x * 0.1) + 8, 25) if x > 0 else 4)
     
-    fig_map = px.scatter_mapbox(
+    fig_map = px.scatter_map(
         df_total_map,
         lat="lat",
         lon="lon",
@@ -141,9 +141,9 @@ if not df_total_map.empty:
         color_discrete_map={"Alloggio": "#a78bfa", "Attrazione": "#34d399"},
         zoom=7.5,
         height=520,
+        map_style="open-street-map"
     )
     fig_map.update_layout(
-        mapbox_style="open-street-map",
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
         legend=dict(yanchor="top", y=0.98, xanchor="left", x=0.01, bgcolor="rgba(15,23,42,0.8)")
     )

@@ -6,7 +6,6 @@ def render_sidebar_header():
         """
         <div style="padding: 0.5rem 0 1rem 0;">
             <h2 style="margin: 0; font-size: 1.4rem; color: #f8fafc; font-weight: 700;">🎛️ Filtri Analitici</h2>
-            <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">Affina i risultati in tempo reale</p>
         </div>
         <hr style="margin-top: 0; margin-bottom: 1.5rem; border-color: rgba(148, 163, 184, 0.2);" />
         """,

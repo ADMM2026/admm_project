@@ -7,7 +7,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 import json
-from seeders.common import PIEDMONT_PROVINCES, locate_municipality, MongoEncoder
+from seeders.common import locate_municipality, MongoEncoder, generate_reviews
 from pymongo import MongoClient
 import argparse
 from dotenv import load_dotenv
@@ -87,6 +87,8 @@ def csv_to_mongo_json(dir_attractions_paths, file_municipalities_path):
     municipalities_piedmont = municipalities_italy[municipalities_italy['COD_REG'] == reg_code].to_crs(target_crs)
     
     attractions = []
+    reviews_per_doc = []
+    
     
     for file_name, config in SOURCES.items():
         path_file = os.path.join(dir_attractions_paths, file_name)
@@ -135,6 +137,10 @@ def csv_to_mongo_json(dir_attractions_paths, file_municipalities_path):
             if config['cat'] in ["Siti UNESCO", "Aree Storico Culturali"]:
                 image_filename = f"{clean_string_for_image_name(name)}.jpg"
 
+
+            last_reviews, reviews_docs, extended_refs = generate_reviews("placeholder", COLLECTION_NAME)
+
+
             document_mongo = {
                 "category": config['cat'],
                 "name": name,
@@ -147,8 +153,8 @@ def csv_to_mongo_json(dir_attractions_paths, file_municipalities_path):
                     "type": "Point",
                     "coordinates": [lon, lat]
                 },
-                "last_reviews": [],
-                "reviews": []
+                "last_reviews": last_reviews,
+                "reviews": extended_refs
             }
 
             if image_filename:
@@ -158,12 +164,13 @@ def csv_to_mongo_json(dir_attractions_paths, file_municipalities_path):
                 document_mongo["extra_info"] = extra
 
             attractions.append(document_mongo)
+            reviews_per_doc.append(reviews_docs)
         
-    return attractions
+    return attractions, reviews_per_doc
 
   
 def main(args):
-    attractions = csv_to_mongo_json(
+    attractions, reviews_per_doc = csv_to_mongo_json(
         dir_attractions_paths=args.attractions_dir,
         file_municipalities_path=args.municipalities
     )
@@ -174,9 +181,21 @@ def main(args):
 
     print(f"Database reset: removing data from collection '{COLLECTION_NAME}'...")
     collection.delete_many({}) 
+    db["reviews"].delete_many({"collection": COLLECTION_NAME})
 
     print(f"Inserting {len(attractions)} documents into '{COLLECTION_NAME}'...")
     result = collection.insert_many(attractions)
+
+    all_reviews_to_insert = []
+    for reviews_docs, inserted_id in zip(reviews_per_doc, result.inserted_ids):
+        for r in reviews_docs:
+            r["site_id"] = str(inserted_id)
+            all_reviews_to_insert.append(r)
+
+    if all_reviews_to_insert:
+        db["reviews"].insert_many(all_reviews_to_insert)
+
+
     print(f"[SUCCESS] Successfully inserted {len(result.inserted_ids)} attractions.")
     os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     print(f"Saving JSON backup to {args.output_json}...")

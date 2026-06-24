@@ -6,7 +6,7 @@ import geopandas as gpd
 from pymongo import MongoClient
 import os
 import argparse
-from seeders.common import PIEDMONT_PROVINCES, locate_municipality, MongoEncoder
+from seeders.common import locate_municipality, MongoEncoder, generate_reviews
 from dotenv import load_dotenv
 
 
@@ -122,6 +122,7 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
         queues_provinces[prov] = group.to_dict('records')
 
     accommodations = []
+    reviews_per_doc = []
     used_rows = set()
 
     for _, row in df_locations.iterrows():
@@ -175,6 +176,9 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
         phone = generate_phone_number(province.upper())
         email = generate_email(name)
 
+        last_reviews, reviews_docs, extended_refs = generate_reviews("placeholder", COLLECTION_NAME)
+
+
         document_mongo = {
             "name": name,
             "structure_type": structure_type,
@@ -197,17 +201,18 @@ def csv_to_mongo_json(file_locations_path, file_details_path, file_municipalitie
                 "email": email,
                 "website": f"www.{email.split('@')[1]}" if "gmail" not in email and "outlook" not in email and "yahoo" not in email else ""
             },
-            "last_reviews": [],
-            "reviews": []
+            "last_reviews": last_reviews,
+            "reviews": extended_refs
         }
 
         accommodations.append(document_mongo)
-    return accommodations
+        reviews_per_doc.append(reviews_docs)
+    return accommodations, reviews_per_doc
 
     
     
 def main(args):
-    accommodations = csv_to_mongo_json(
+    accommodations, reviews_per_doc = csv_to_mongo_json(
         file_locations_path=args.locations,
         file_details_path=args.details,
         file_municipalities_path=args.municipalities
@@ -219,10 +224,22 @@ def main(args):
 
     print(f"Database reset: removing data from collection '{COLLECTION_NAME}'...")
     collection.delete_many({}) 
+    db["reviews"].delete_many({"collection": COLLECTION_NAME})
 
     
     print(f"Inserting {len(accommodations)} documents into '{COLLECTION_NAME}'...")
     result = collection.insert_many(accommodations)
+
+    all_reviews_to_insert = []
+    for reviews_docs, inserted_id in zip(reviews_per_doc, result.inserted_ids):
+        for r in reviews_docs:
+            r["site_id"] = str(inserted_id)
+            all_reviews_to_insert.append(r)
+
+    if all_reviews_to_insert:
+        db["reviews"].insert_many(all_reviews_to_insert)
+
+
     print(f"[SUCCESS] Successfully inserted {len(result.inserted_ids)} accommodations.")
     os.makedirs(os.path.dirname(args.output_json), exist_ok=True)
     print(f"Saving JSON backup to {args.output_json}...")
