@@ -147,7 +147,7 @@ python -m startup --fresh
 ```
 
 This creates the Elasticsearch indices, registers the Debezium connector, and starts both `processor_elk` and `processor_neo4j` as background processes. On first run, Debezium will perform an **initial snapshot** of MongoDB and replicate everything to Elasticsearch and Neo4j automatically.
-It also ensures that a manger account is present, with username `admin` and passowrd `admin`.
+It also ensures that a manager account is present, with username `admin` and password `admin`.
 
 **Terminal 2 - back-end directory:** populate MongoDB with initial data.
 

@@ -1,10 +1,10 @@
 # Software Requirements & Architectural Specifications
-## Multi-Database Tourism System: "Piemonte Turismo"
+## Multi-Database Tourism System: "Turismo Piemonte"
 
 ---
 
 ## 1. Executive Summary & System Overview
-This document specifies the functional requirements, non-functional constraints, and architectural patterns for the "Piemonte Turismo" platform. The platform delivers a high-performance geospatial and exploratory experience for tourists looking for accommodations and attractions in the Piedmont region. Concurrently, it empowers enterprise managers with an analytical dashboard for regional resource capacity monitoring and telemetry tracking.
+This document specifies the functional requirements, non-functional constraints, and architectural patterns for the "Turismo Piemonte" platform. The platform delivers a high-performance geospatial and exploratory experience for tourists looking for accommodations and attractions in the Piedmont region. Concurrently, it empowers enterprise managers with an analytical dashboard for regional resource capacity monitoring and telemetry tracking.
 
 ---
 
@@ -12,8 +12,8 @@ This document specifies the functional requirements, non-functional constraints,
 To guarantee maximum write/read isolation, horizontal scalability, and optimized query execution, the system rejects a monolithic database approach in favor of **Polyglot Persistence**. Each storage technology is selected based on its underlying mathematical model and data access patterns.
 
 ### 2.1 MongoDB: Single Source of Truth & Operational Store
-* **Data Model:** Document-Oriented (BSON/JSON-like).
-* **Architectural Rationale:** Acts as the foundational backbone and the Single Source of Truth (SSoT). The schema-less nature of document collections handles polymorphic entities gracefully. Reviews are embedded directly within their respective documents to optimize common read pathways.
+* **Data Model:** Document-Oriented.
+* **Architectural Rationale:** Acts as the foundational backbone and the Single Source of Truth (SSoT). The schema-less nature of document collections handles polymorphic entities gracefully. Most recent reviews are embedded directly within their respective documents to optimize common read pathways, for the remaining reviews, each document maintains an Extended Reference with `_id` and `rating` fields to perform statistics computation without a lookup operation.
 
 
 #### Conceputal model:
@@ -40,110 +40,196 @@ Collection Users
 Collection Accommodations
 ```json
 {
-    "name": "B&B Il Cervo Innevato",
-    "structure_type": "Bed & Breakfast",
-    "sector": "SETTORE EXTRALBERGHIERO",
-    "stars": 2,
-    "location": {
-        "municipality": "Tagliolo Monferrato",
-        "province": "AL"
+  "_id": {
+    "$oid": "6a3b99594fca9987c5063abe"
+  },
+  "name": "Residenza Larice Alpina",
+  "structure_type": "Locazioni Turistiche",
+  "sector": "SETTORE EXTRALBERGHIERO",
+  "stars": 2,
+  "location": {
+    "municipality": "Acqui Terme",
+    "province": "AL"
+  },
+  "position": {
+    "type": "Point",
+    "coordinates": [
+      8.470081174779834,
+      44.66302191037583
+    ]
+  },
+  "capacity": {
+    "rooms": 4,
+    "beds": 6
+  },
+  "contacts": {
+    "phone": "0131 122522",
+    "email": "residenzalaricealpina@gmail.com",
+    "website": ""
+  },
+  "last_reviews": [
+    {
+      "username": "giuly92",
+      "rating": 5,
+      "text": "Struttura un po' datata ma gestione familiare calorosa.",
+      "created_at": "2026-06-14T08:46:14.522032+00:00"
     },
-    "position": {
-        "type": "Point",
-        "coordinates": [
-            8.671633643949379,
-            44.63570199305244
-        ]
+    {
+      "username": "traveler_luca",
+      "rating": 4,
+      "text": "Camera pulita e silenziosa, ideale per una sosta.",
+      "created_at": "2026-03-29T08:46:14.521951+00:00"
     },
-    "capacity": {
-        "rooms": 7,
-        "beds": 15
+    {
+      "username": "giuly92",
+      "rating": 4,
+      "text": "Struttura accogliente e ben tenuta, personale molto disponibile.",
+      "created_at": "2026-02-04T08:46:14.521994+00:00"
+    }
+  ],
+  "reviews": [
+    {
+      "_id": null,
+      "rating": 5
     },
-    "contacts": {
-        "phone": "0131 4879804",
-        "email": "ilcervoinnevato@gmail.com",
-        "website": ""
+    {
+      "_id": null,
+      "rating": 4
     },
-    "reviews": [],
-    "_id": {"$oid": "6a37be28dd3a8bb7423fcd24"}
+    {
+      "_id": null,
+      "rating": 4
+    },
+    {
+      "_id": null,
+      "rating": 5
+    }
+  ]
 }
 ```
 
 Collection Attractions
 ```json
 {
-    "category": "Siti UNESCO",
-    "name": "Palazzina di caccia di Stupinigi",
-    "description": "Una delle residenze sabaude più prestigiose del Piemonte. La costruzione dell'ediﬁcio, pensato per la caccia e le feste della famiglia reale, è stata avviata nel 1729 su progetto di Filippo Juvarra, uno degli architetti più rinomati del XVIII secolo.",
-    "location": {
-        "municipality": "Nichelino",
-        "province": "TO"
+  "_id": {
+    "$oid": "6a3b9d006c304ab41d05a49a"
+  },
+  "category": "Siti UNESCO",
+  "name": "Palazzina di caccia di Stupinigi",
+  "description": "Una delle residenze sabaude più prestigiose del Piemonte. La costruzione dell'ediﬁcio, pensato per la caccia e le feste della famiglia reale, è stata avviata nel 1729 su progetto di Filippo Juvarra, uno degli architetti più rinomati del XVIII secolo.",
+  "location": {
+    "municipality": "Nichelino",
+    "province": "TO"
+  },
+  "position": {
+    "type": "Point",
+    "coordinates": [
+      7.605221687729391,
+      44.995753792005296
+    ]
+  },
+  "last_reviews": [
+    {
+      "username": "ale_piemonte",
+      "rating": 4,
+      "text": "Meno conosciuto di altri ma decisamente da scoprire.",
+      "created_at": "2026-04-13T09:01:14.054879+00:00"
     },
-    "position": {
-        "type": "Point",
-        "coordinates": [
-            7.605221687729391,
-            44.995753792005296
-        ]
+    {
+      "username": "silvia.b",
+      "rating": 5,
+      "text": "Paesaggio mozzafiato, consiglio di andarci al tramonto.",
+      "created_at": "2026-02-16T09:01:14.054926+00:00"
     },
-    "image": "palazzinadicacciadistupinigi.jpg",
-    "_id": {"$oid": "6a37b6e8155e20c353455ad6"}
+    {
+      "username": "fra_explorer",
+      "rating": 4,
+      "text": "Meno conosciuto di altri ma decisamente da scoprire.",
+      "created_at": "2026-01-23T09:01:14.054776+00:00"
+    }
+  ],
+  "reviews": [
+    {
+      "_id": null,
+      "rating": 4
+    },
+    {
+      "_id": null,
+      "rating": 5
+    },
+    {
+      "_id": null,
+      "rating": 4
+    }
+  ],
+  "image": "palazzinadicacciadistupinigi.jpg"
+}
+```
+
+Collection Reviews
+```json
+{
+  "_id": {
+    "$oid": "6a3b995a4fca9987c5063b68"
+  },
+  "username": "giuly92",
+  "rating": 3,
+  "text": "Servizio nella norma, niente di speciale ma nel complesso soddisfacente.",
+  "created_at": "2026-01-16T08:46:14.511750+00:00",
+  "site_id": "6a3b99594fca9987c5063abd",
+  "collection": "accommodations"
 }
 ```
 
 
-
 ### 2.2 Elasticsearch: Search Engine & Full-Text Analytics
-* **Data Model:** Inverted Index oriented by document.
-* **Architectural Rationale:** Offloads heavy string matching, multi-attribute filtering (e.g., by category, classification, or province), and complex text exploration away from the primary operational database. It features sub-millisecond search latencies, instant aggregations, and typographical error tolerance (fuzzy search), protecting the system from bottlenecking during high tourist search concurrency.
+* **Data Model:** Inverted Index oriented.
+* **Architectural Rationale:** Offloads heavy string matching, multi-attribute filtering (e.g., by category, classification, or province), and complex text exploration away from the primary operational database. It features sub-millisecond search latencies, instant aggregations, and typographical error tolerance (fuzzy search).
 
 #### Mappings:
+Both indices use the Italian language analyzer for text fields and a custom `province_analyzer` that expands province abbreviations to their full names (e.g., `TO → Torino`, `CN → Cuneo`), enabling search by either form.
+
 Mapping Accommodations
 ```json
 {
-    "mappings": {
+  "mappings": {
+    "properties": {
+      "name":        { "type": "text",      "analyzer": "italian" },
+      "reviews":     { "type": "text",      "analyzer": "italian" },
+      "coordinates": { "type": "geo_point"                        },
+      "location": {
         "properties": {
-            "name": { "type": "text", "analyzer": "standard" },
-            "structure_type": { "type": "keyword" },
-            "stars": { "type": "integer" },
-            "location": {
-                "properties": {
-                    "province": { "type": "keyword" },
-                    "municipality": { "type": "keyword" },
-                    "address": { "type": "text" }
-                }
-            },
-            "coordinates": { "type": "geo_point" },
-            "reviews": { "type": "text", "analyzer": "standard" }
+          "municipality": { "type": "text", "analyzer": "italian"          },
+          "province":     { "type": "text", "analyzer": "province_analyzer" }
         }
+      }
     }
+  }
 }
 ```
 
 Mapping Attractions
 ```json
 {
-    "mappings": {
+  "mappings": {
+    "properties": {
+      "name":        { "type": "text",      "analyzer": "italian" },
+      "description": { "type": "text",      "analyzer": "italian" },
+      "reviews":     { "type": "text",      "analyzer": "italian" },
+      "coordinates": { "type": "geo_point"                        },
+      "location": {
         "properties": {
-            "name": { "type": "text", "analyzer": "standard" },
-            "category": { "type": "keyword" },
-            "description": { "type": "text", "analyzer": "standard" },
-            "location": {
-                "properties": {
-                    "province": { "type": "keyword" },
-                    "municipality": { "type": "keyword" },
-                    "address": { "type": "text" }
-                }
-            },
-            "coordinates": { "type": "geo_point" },
-            "reviews": { "type": "text", "analyzer": "standard" }
+          "municipality": { "type": "text", "analyzer": "italian"          },
+          "province":     { "type": "text", "analyzer": "province_analyzer" }
         }
+      }
     }
+  }
 }
 ```
 
 ### 2.3 Neo4j: Property Graph Database for Geospatial Proximity
-* **Data Model:** Labelled Property Graph (Nodes, Edges, and Properties).
+* **Data Model:** Labelled Property Graph.
 * **Architectural Rationale:** Specifically integrated to solve complex relational queries and proximity analysis without incurring the computational overhead of heavy relational JOINs or real-time trigonometric distance math. It maps locations as nodes and establishes `NEAR_TO` relationships with a `distance_km` property if they fall within a 3km radius. This enables rapid extraction of nearby points of interest (e.g., finding top attractions near a chosen accommodation).
 
 #### Nodes and Edges structure:
@@ -174,7 +260,7 @@ Relation Accomodation, Attraction
 ```
 
 ### 2.4 InfluxDB (Planned Specifications): Time-Series Storage
-* **Data Model:** Time-Series (Timestamp, Measurements, Tags, Fields).
+* **Data Model:** Time-Series.
 * **Architectural Rationale:** Configured to ingest and analyze high-frequency, sequential telemetry. InfluxDB is assigned two critical scopes:
     1.  **Infrastructure Diagnostics:** Continuous monitoring of system-wide container health (CPU utilization, memory consumption, network saturation across the polyglot cluster nodes).
     2.  **Business Events:** Storing event data over time (e.g., real-time user registration trends, review posting frequency) to populate historical trend graphs on the manager’s dashboard.
