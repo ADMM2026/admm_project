@@ -1,6 +1,7 @@
 import time
 import requests
 import json
+import copy
 import os
 from dotenv import load_dotenv
 from kafka import KafkaAdminClient
@@ -16,15 +17,14 @@ if not CONNECT_URL.endswith("/connectors") and "localhost:8083" in CONNECT_URL:
 ES_URL = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
 
 
-
 def reset_neo4j(fresh_start=False):
     if not fresh_start:
         return
-    
+
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "admin")
     password = os.getenv("NEO4J_PASSWORD", "password")
-    
+
     print("[INFO] Cleaning up Neo4j Graph Database (--fresh)...")
     try:
         with GraphDatabase.driver(uri, auth=(user, password)) as driver:
@@ -64,20 +64,48 @@ def init_elasticsearch_indices(fresh_start=False):
         },
         "mappings": {
             "properties": {
-                "name": { "type": "text", "analyzer": "italian" },
-                "reviews": { "type": "text", "analyzer": "italian" },
-                "coordinates": { "type": "geo_point" },
+                "name": {"type": "text", "analyzer": "italian"},
+                "reviews": {"type": "text", "analyzer": "italian"},
+                "coordinates": {"type": "geo_point"},
                 "location": {
                     "properties": {
-                        "municipality": { "type": "text", "analyzer": "italian" },
-                        "province": { "type": "text", "analyzer": "province_analyzer" }
+                        "municipality": {
+                            "type": "text",
+                            "analyzer": "italian",
+                            "fields": {
+                                "keyword": {"type": "keyword"}
+                            }
+                        },
+                        "province": {
+                            "type": "text",
+                            "analyzer": "province_analyzer",
+                            "fields": {
+                                "keyword": {"type": "keyword"}
+                            }
+                        }
                     }
                 }
             }
         }
     }
+
+    mapping_accommodations = copy.deepcopy(mapping_template)
+    mapping_accommodations["mappings"]["properties"]["structure_type"] = {"type": "keyword"}
+    mapping_accommodations["mappings"]["properties"]["stars"] = {"type": "integer"}
+
+    mapping_attractions = copy.deepcopy(mapping_template)
+    mapping_attractions["mappings"]["properties"]["category"] = {
+        "type": "text",
+        "analyzer": "italian",
+        "fields": {
+            "keyword": {"type": "keyword"}
+        }
+    }
+    mapping_attractions["mappings"]["properties"]["description"] = {"type": "text", "analyzer": "italian"}
+
     index_names = ["accommodations", "attractions"]
-    mappings = [mapping_template, mapping_template]
+    mappings = [mapping_accommodations, mapping_attractions]
+
     for index_name, mapping in zip(index_names, mappings):
         index_url = f"{ES_URL}/{index_name}"
         try:
@@ -86,10 +114,14 @@ def init_elasticsearch_indices(fresh_start=False):
         except requests.exceptions.ConnectionError:
             print("[ERROR] Cannot connect to Elasticsearch. Is it running?")
             return
+
         if index_exists:
             if fresh_start:
                 print(f"Removing old ELK index '{index_name}'...")
-                requests.delete(index_url)
+                del_res = requests.delete(index_url)
+                if del_res.status_code != 200:
+                    print(f"[ERROR] Could not delete '{index_name}': {del_res.text}")
+                    continue
             else:
                 print(f"ELK index '{index_name}' already exists.")
                 continue
@@ -99,6 +131,7 @@ def init_elasticsearch_indices(fresh_start=False):
             print(f"[SUCCESS] ELK index '{index_name}' created.")
         else:
             print(f"[ERROR] Failed to create ELK index '{index_name}': {res.text}")
+
 
 def start_debezium(fresh_start=False):
     connect_base = os.getenv("KAFKA_CONNECT_URL", "http://localhost:8083/connectors")
@@ -112,7 +145,6 @@ def start_debezium(fresh_start=False):
         except requests.exceptions.ConnectionError:
             pass
         time.sleep(2)
-
 
     config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mongo-source.json")
     if not os.path.exists(config_path):
@@ -133,7 +165,7 @@ def start_debezium(fresh_start=False):
                 del_res = requests.delete(connector_url)
                 if del_res.status_code in [200, 204]:
                     print(f"[SUCCESS] Deleted old Debezium connector '{connector_name}'.")
-                    time.sleep(1) 
+                    time.sleep(1)
                 else:
                     print(f"[ERROR] Failed to delete old connector: {del_res.text}")
                     return
@@ -151,10 +183,10 @@ def start_debezium(fresh_start=False):
         print(f"[ERROR] Debezium initialization failed: {e}")
 
 
-
 def reset_kafka(fresh_start=False):
     if not fresh_start:
-        return    
+        return
+
     kafka_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092").split(",")
     topics_to_delete = [
         "Tourism.Tourism.accommodations",
